@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% set page = "groups" %}
+{% block title %}Groups — QuizMonkey{% endblock %}
+
+{% block content %}
+<h1>Groups</h1>
+<p class="lead">Create a group, then invite trainees by e-mail address.</p>
+
+<section class="card form-narrow">
+    <h2 style="margin-top:0">New group</h2>
+    <form method="post" action="/groups">
+        <label for="name">Group name</label>
+        <input id="name" name="name" type="text" maxlength="80" required
+               placeholder="e.g. Recurrent 2026">
+        <button class="btn btn-success" type="submit">Create group</button>
+    </form>
+</section>
+
+{% if groups %}
+    <div class="card-grid">
+        {% for g in groups %}
+            <section class="card">
+                <h3 style="margin-top:0">
+                    <a href="/groups/{{ g.id }}">{{ g.name }}</a>
+                </h3>
+                <p class="muted">
+                    {{ g.member_count }} member{{ '' if g.member_count == 1 else 's' }}
+                </p>
+                <div class="btn-row">
+                    <a class="btn btn-info" href="/groups/{{ g.id }}">Open</a>
+                    <form method="post" action="/groups/{{ g.id }}/delete"
+                          data-confirm="{{ t('groups.delete_confirm') }}">
+                        <button class="btn btn-danger" type="submit">Delete</button>
+                    </form>
+                </div>
+            </section>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card">
+        <p class="muted" style="margin:0">
+            No groups yet. Create your first one above.
+        </p>
+    </div>
+{% endif %}
+{% endblock %}

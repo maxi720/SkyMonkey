@@ -1,0 +1,1125 @@
+/* QuizMonkey web — hand-written, no CSS framework.
+   Keeps the licence situation trivial and the payload small.
+
+   Fonts come from the operating system: nothing is downloaded, so no font
+   licence applies and no visitor IP reaches a third party (GDPR).
+
+   VISUAL LANGUAGE: Swiss modernist, tuned for a compliance-training back
+   office. Structure is carried by hairlines, whitespace and typography, not by
+   cards floating on drop shadows. Exactly one accent colour marks what is
+   active; green and red mean only passed and failed. Numbers are set in
+   tabular figures so columns line up while scanning.
+
+   Appearance is chosen explicitly in the settings and applied server-side via
+   data-theme on <html>. It is never inferred from the OS: light is the
+   product's design on both front ends, and the mobile app is fixed to light. */
+
+:root {
+    color-scheme: light;
+
+    /* Neutrals carry no colour cast, so the single accent is the only chroma
+       on the page. */
+    --bg: #FAFAFA;
+    --surface: #FFFFFF;
+    --surface-2: #F4F4F5;
+    --border: #E4E4E7;
+    --border-strong: #D4D4D8;
+    --text: #18181B;
+    --muted: #71717A;
+    /* Small uppercase labels sit on --surface-2, where --muted lands at
+       4.4:1. This darker step keeps them above AA. */
+    --muted-strong: #52525B;
+
+    --primary: #4F46E5;
+    --primary-hover: #4338CA;
+    --primary-press: #3730A3;
+    --primary-soft: #EEF2FF;
+    --primary-soft-bd: #C7D2FE;
+    --primary-ink: #312E81;
+
+    --success: #15803D;
+    --success-hover: #166534;
+    --success-soft: #F0FDF4;
+    --success-soft-bd: #BBF7D0;
+    --success-ink: #14532D;
+
+    --danger: #B91C1C;
+    --danger-hover: #991B1B;
+    --danger-soft: #FEF2F2;
+    --danger-soft-bd: #FECACA;
+    --danger-ink: #7F1D1D;
+
+    --accent: #A16207;
+    --accent-soft: #FEFCE8;
+    --accent-soft-bd: #FDE68A;
+    --accent-ink: #713F12;
+
+    --info: #1D4ED8;
+    --info-hover: #1E40AF;
+    --info-soft: #EFF6FF;
+    --info-ink: #1E3A8A;
+
+    --on-primary: #FFFFFF;
+
+    /* One radius scale. Small and consistent: a tool, not a toy, but not the
+       hard-edged brutalist look either. */
+    --radius-sm: 4px;
+    --radius: 6px;
+    --radius-lg: 8px;
+    --radius-pill: 999px;
+
+    /* 8px base unit. */
+    --gap: 16px;
+
+    /* Elevation is not a structural device here. The only shadow is for things
+       that genuinely float above the page. */
+    --shadow-pop: 0 8px 24px -8px rgb(24 24 27 / 0.16);
+    --ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
+
+    --tap: 40px;
+    --speed: 120ms;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --bg: #09090B;
+    --surface: #121214;
+    --surface-2: #1C1C1F;
+    --border: #27272A;
+    --border-strong: #3F3F46;
+    --text: #FAFAFA;
+    --muted: #A1A1AA;
+    --muted-strong: #C4C4CC;
+
+    --primary: #818CF8;
+    --primary-hover: #A5B4FC;
+    --primary-press: #6366F1;
+    --primary-soft: #1E1B4B;
+    --primary-soft-bd: #3730A3;
+    --primary-ink: #C7D2FE;
+
+    --success: #4ADE80;
+    --success-hover: #86EFAC;
+    --success-soft: #0B2E17;
+    --success-soft-bd: #166534;
+    --success-ink: #BBF7D0;
+
+    --danger: #F87171;
+    --danger-hover: #FCA5A5;
+    --danger-soft: #341212;
+    --danger-soft-bd: #7F1D1D;
+    --danger-ink: #FECACA;
+
+    --accent: #FACC15;
+    --accent-soft: #2A2109;
+    --accent-soft-bd: #713F12;
+    --accent-ink: #FDE68A;
+
+    --info: #60A5FA;
+    --info-hover: #93C5FD;
+    --info-soft: #10203D;
+    --info-ink: #BFDBFE;
+
+    /* Filled accents are light in dark mode, so their label goes dark. White
+       would fall below WCAG AA on these tones. */
+    --on-primary: #09090B;
+
+    --shadow-pop: 0 8px 24px -8px rgb(0 0 0 / 0.7);
+    --ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary);
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+a { color: var(--primary); text-underline-offset: 2px; }
+a:hover { color: var(--primary-hover); }
+
+:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+    border-radius: var(--radius-sm);
+}
+
+/* Every figure in the interface is a measurement someone scans down a column. */
+.stat-value, .result-score, td, th, .timer, .facts li, .badge {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- dashboard shell (signed in) ----------
+   Sidebar left, content right. Below 900px the rail becomes a header and the
+   nav scrolls horizontally: no JavaScript, so nothing is blocked by the CSP
+   and there is no toggle state to get wrong. */
+body.has-shell { display: block; }
+
+.shell {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 20px 16px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.sidebar .brand { margin: 2px 0 0 8px; }
+
+.side-actions { display: flex; flex-direction: column; gap: 8px; }
+
+.shell-main { display: flex; flex-direction: column; min-width: 0; }
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px clamp(20px, 3vw, 40px);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--tap);
+    height: var(--tap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--muted);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background var(--speed) ease, color var(--speed) ease,
+                border-color var(--speed) ease;
+}
+
+.icon-btn:hover {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+.icon-btn.is-active {
+    background: var(--primary-soft);
+    border-color: var(--primary-soft-bd);
+    color: var(--primary-ink);
+}
+
+.icon-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.side-nav { display: flex; flex-direction: column; gap: 1px; }
+
+.side-nav a {
+    display: block;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    color: var(--muted);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    transition: background var(--speed) ease, color var(--speed) ease;
+}
+
+.side-nav a:hover { background: var(--surface-2); color: var(--text); }
+
+.side-nav a[aria-current="page"] {
+    background: var(--primary-soft);
+    color: var(--primary-ink);
+    font-weight: 600;
+}
+
+.side-nav-label {
+    margin: 16px 0 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.sidebar-foot {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.side-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 0 4px;
+}
+
+.side-user-name { font-weight: 600; font-size: 14px; overflow-wrap: break-word; }
+
+.side-legal {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0 4px;
+    font-size: 13px;
+}
+
+.content {
+    padding: 32px clamp(20px, 3vw, 40px) 64px;
+    max-width: 1200px;
+    width: 100%;
+}
+
+.page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+}
+
+.page-head h1 { margin-bottom: 2px; }
+.page-head .lead { margin: 0; }
+
+@media (max-width: 899px) {
+    .shell { grid-template-columns: 1fr; }
+
+    .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+        gap: 12px;
+    }
+
+    .side-nav {
+        flex-direction: row;
+        gap: 4px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+    }
+
+    .side-nav a { white-space: nowrap; }
+    .side-nav-label { display: none; }
+
+    .sidebar-foot {
+        margin-top: 0;
+        flex-direction: row;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .sidebar-foot form { margin: 0; }
+    .sidebar-foot .btn-block { width: auto; }
+    .side-legal { margin-left: auto; }
+
+    .side-actions { flex-direction: row; flex-wrap: wrap; }
+    .side-actions .btn-block { width: auto; flex: 1 1 auto; }
+
+    .topbar {
+        border-bottom: 0;
+        padding: 8px clamp(20px, 3vw, 40px) 0;
+        background: transparent;
+    }
+
+    .content { padding-top: 20px; }
+}
+
+/* ---------- measurement strip ----------
+   The trainer's headline numbers. Not cards: one hairline-divided band, with
+   the figures oversized and tabular so they read like an instrument panel. */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(50% - 8px, 8rem), 1fr));
+    gap: 1px;
+    margin-bottom: 32px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 20px 22px;
+    background: var(--surface);
+    color: inherit;
+    text-decoration: none;
+    transition: background var(--speed) ease;
+}
+
+a.stat:hover { background: var(--surface-2); color: inherit; }
+a.stat:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.stat-value {
+    font-size: 34px;
+    font-weight: 650;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+}
+
+.stat-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+}
+
+/* ---------- panels ---------- */
+.panel-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--gap);
+    align-items: start;
+}
+
+@media (min-width: 900px) {
+    .panel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    /* An odd number of panels would otherwise leave a dead half-row, so the
+       last one spans the full width instead. */
+    .panel-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+.card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 12px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+}
+
+.card-head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+}
+
+.card-head a { font-size: 13px; font-weight: 500; }
+
+/* ---------- layout (signed out) ---------- */
+.site-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+}
+
+.site-header .inner,
+main.wrap,
+.site-footer .inner {
+    width: min(100% - 40px, 64rem);
+    margin-inline: auto;
+}
+
+.site-header .inner {
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    flex-wrap: wrap;
+    padding-block: 14px;
+}
+
+.brand {
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    text-decoration: none;
+    margin-right: auto;
+}
+
+.brand:hover { color: var(--text); }
+
+nav.main-nav { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+
+nav.main-nav a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-weight: 500;
+    font-size: 14px;
+    transition: background var(--speed) ease, color var(--speed) ease;
+}
+
+nav.main-nav a:hover { background: var(--surface-2); color: var(--text); }
+
+nav.main-nav a[aria-current="page"] {
+    background: var(--primary-soft);
+    color: var(--primary-ink);
+}
+
+main.wrap { flex: 1; padding-block: 40px 64px; }
+
+.site-footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+}
+
+.site-footer .inner {
+    padding-block: 16px;
+    display: flex;
+    gap: var(--gap);
+    flex-wrap: wrap;
+    align-items: center;
+    color: var(--muted);
+}
+
+/* ---------- type scale ----------
+   12 / 13 / 15 / 18 / 24 / 32. Hierarchy comes from weight and colour as much
+   as from size, so headings stay in proportion on a dense page. */
+h1 {
+    font-size: 26px;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    font-weight: 680;
+    margin: 0 0 8px;
+    text-wrap: pretty;
+}
+
+h2 {
+    font-size: 18px;
+    line-height: 1.35;
+    letter-spacing: -0.012em;
+    font-weight: 650;
+    margin: 32px 0 12px;
+    text-wrap: pretty;
+}
+
+h3 {
+    font-size: 15px;
+    line-height: 1.4;
+    font-weight: 650;
+    margin: 24px 0 8px;
+}
+
+p { margin: 0 0 14px; }
+.lead { color: var(--muted); font-size: 15px; }
+.muted { color: var(--muted); }
+small { color: var(--muted); font-size: 13px; }
+
+/* ---------- panels / cards ---------- */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px;
+    margin-bottom: var(--gap);
+}
+
+.card > :last-child { margin-bottom: 0; }
+.card h2:first-child,
+.card h3:first-child { margin-top: 0; }
+
+.card-grid {
+    display: grid;
+    gap: var(--gap);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+
+/* ---------- forms ---------- */
+.form-narrow { max-width: 25rem; }
+
+label {
+    display: block;
+    font-weight: 550;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+textarea,
+select {
+    width: 100%;
+    min-height: var(--tap);
+    padding: 9px 12px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    /* 16px keeps iOS Safari from zooming in on focus. */
+    font-size: 16px;
+    font-family: inherit;
+    transition: border-color var(--speed) ease, box-shadow var(--speed) ease;
+}
+
+input::placeholder, textarea::placeholder { color: var(--muted); }
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: var(--ring);
+}
+
+input:disabled, textarea:disabled, select:disabled {
+    background: var(--surface-2);
+    border-color: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+}
+
+.check { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; }
+
+.check input {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    margin: 2px 0 0;
+    accent-color: var(--primary);
+}
+
+.check label { font-weight: 400; font-size: 14px; color: var(--muted); margin: 0; }
+
+.qsearch {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 10px 0;
+    margin-bottom: 8px;
+    background: var(--bg);
+}
+.qsearch input[type="search"] { margin-bottom: 4px; }
+.qsearch[hidden] { display: none; }
+.qblock[hidden] { display: none; }
+
+/* ---------- buttons ----------
+   No lift, no glow. State is a colour change only: on a dense working screen a
+   button that moves under the cursor is noise. */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tap);
+    padding: 9px 16px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: var(--primary);
+    color: var(--on-primary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    white-space: nowrap;
+    transition: background var(--speed) ease, border-color var(--speed) ease;
+}
+
+.btn:hover { background: var(--primary-hover); color: var(--on-primary); }
+.btn:active { background: var(--primary-press); }
+.btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-block { display: flex; width: 100%; }
+
+.btn-success { background: var(--success); }
+.btn-success:hover { background: var(--success-hover); }
+
+.btn-danger  { background: var(--danger); }
+.btn-danger:hover { background: var(--danger-hover); }
+
+.btn-info    { background: var(--info); }
+.btn-info:hover { background: var(--info-hover); }
+
+.btn-ghost {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+.btn-ghost:hover {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--muted);
+}
+
+.btn-small {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 550;
+}
+
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- messages ----------
+   A left rule carries the severity; the fill stays quiet so a notice does not
+   shout louder than the content it is about. */
+.msg {
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted);
+    border-radius: var(--radius);
+    margin-bottom: var(--gap);
+    font-size: 14px;
+    line-height: 1.5;
+    background: var(--surface);
+}
+
+.msg-error  {
+    background: var(--danger-soft);
+    border-color: var(--danger-soft-bd);
+    border-left-color: var(--danger);
+    color: var(--danger-ink);
+}
+
+.msg-notice {
+    background: var(--success-soft);
+    border-color: var(--success-soft-bd);
+    border-left-color: var(--success);
+    color: var(--success-ink);
+}
+
+.msg-warn   {
+    background: var(--accent-soft);
+    border-color: var(--accent-soft-bd);
+    border-left-color: var(--accent);
+    color: var(--accent-ink);
+}
+
+/* ---------- badges ---------- */
+.badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+    background: var(--surface-2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+}
+
+.badge-trainer {
+    background: var(--primary-soft);
+    color: var(--primary-ink);
+    border-color: var(--primary-soft-bd);
+}
+.badge-pass {
+    background: var(--success-soft);
+    color: var(--success-ink);
+    border-color: var(--success-soft-bd);
+}
+.badge-fail {
+    background: var(--danger-soft);
+    color: var(--danger-ink);
+    border-color: var(--danger-soft-bd);
+}
+
+/* ---------- tables ---------- */
+.table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+
+th, td {
+    text-align: left;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+tr:last-child td { border-bottom: 0; }
+
+th {
+    background: var(--surface-2);
+    color: var(--muted-strong);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+tbody tr:hover td { background: var(--surface-2); }
+
+/* ---------- prose (legal pages) ---------- */
+.prose { max-width: 42rem; }
+.prose ul { padding-left: 20px; }
+.prose li { margin-bottom: 6px; }
+.prose dt { font-weight: 650; margin-top: 14px; }
+.prose dd { margin: 0 0 8px; color: var(--muted); }
+
+/* ---------- accessibility ---------- */
+.skip-link { position: absolute; left: -9999px; }
+
+.skip-link:focus {
+    left: 8px;
+    top: 8px;
+    z-index: 10;
+    background: var(--primary);
+    color: var(--on-primary);
+    padding: 8px 14px;
+    border-radius: var(--radius);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- question block ---------- */
+.qblock {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px 16px;
+    margin-bottom: var(--gap);
+}
+
+.qblock legend {
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+.qblock legend.qprompt {
+    font-size: 16px;
+    font-weight: 650;
+    line-height: 1.4;
+    letter-spacing: -0.008em;
+    text-transform: none;
+    color: var(--text);
+    margin-bottom: 4px;
+    text-wrap: pretty;
+}
+
+.small-note { font-size: 13px; margin-bottom: 10px; }
+
+/* Editor: checkbox + answer field on one line. */
+.answer-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+
+.answer-row input[type="radio"],
+.answer-row input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    accent-color: var(--primary);
+    margin: 0;
+}
+
+.answer-row input[type="text"] { margin-bottom: 0; }
+
+/* Test runner: the same row as a selectable option. Selection is a tinted fill
+   plus a left rule, so a picked answer is legible even in greyscale. */
+.answer-opt {
+    gap: 12px;
+    min-height: 48px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    transition: background var(--speed) ease, border-color var(--speed) ease;
+}
+
+.answer-opt:hover { background: var(--surface-2); border-color: var(--border-strong); }
+
+.answer-opt input[type="radio"],
+.answer-opt input[type="checkbox"] { width: 20px; height: 20px; }
+
+.answer-opt label {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--text);
+    margin: 0;
+    flex: 1;
+    cursor: pointer;
+}
+
+.answer-opt:has(input:checked) {
+    background: var(--primary-soft);
+    border-color: var(--primary-soft-bd);
+    border-left-color: var(--primary);
+}
+
+.answer-opt:has(input:checked) label { font-weight: 600; color: var(--primary-ink); }
+
+.answer-opt:has(input:focus-visible) { box-shadow: var(--ring); }
+
+.share-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.share-row:last-child { border-bottom: 0; }
+.share-row span:first-of-type { margin-right: auto; font-weight: 550; }
+
+/* Quizzes and tests as accordions. */
+.quiz-list { margin-bottom: var(--gap); }
+
+.quiz-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.quiz-item > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    transition: background var(--speed) ease;
+}
+
+.quiz-item > summary:hover { background: var(--surface-2); }
+.quiz-item > summary::-webkit-details-marker { display: none; }
+
+.quiz-item > summary::before {
+    content: "\25B8";           /* ▸ */
+    color: var(--muted);
+    font-size: 12px;
+    transition: transform var(--speed) ease;
+}
+
+.quiz-item[open] > summary::before { transform: rotate(90deg); }
+.quiz-item[open] > summary { border-bottom: 1px solid var(--border); }
+.quiz-item-name { font-weight: 550; margin-right: auto; }
+
+.quiz-item-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.quiz-item-body { padding: 16px; background: var(--surface); }
+.quiz-item-body > :last-child { margin-bottom: 0; }
+
+.quiz-item-body h3 {
+    margin: 20px 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.quiz-item-body h3:first-child { margin-top: 0; }
+
+.tag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+
+.tag-list li {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 3px 9px;
+    font-size: 12px;
+    font-weight: 550;
+}
+
+/* Key/value facts. */
+.facts { list-style: none; margin: 0 0 8px; padding: 0; }
+
+.facts li {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.facts li:last-child { border-bottom: 0; }
+.facts li span { color: var(--muted); }
+
+.src-table { width: 100%; }
+.src-table th { text-align: left; }
+.src-table input[type="number"] { margin: 0; max-width: 6rem; }
+
+.field-label { font-weight: 550; font-size: 13px; color: var(--text); margin: 16px 0 6px; }
+
+.row-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+/* Test countdown. */
+.timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.timer strong { color: var(--text); font-size: 15px; font-weight: 650; }
+
+/* Test result. The verdict is the page, so the score is set large and the
+   pass/fail state is carried by a top rule plus a word, never colour alone. */
+.result-card {
+    text-align: center;
+    border-radius: var(--radius-lg);
+    border-top: 3px solid var(--border-strong);
+    padding: 32px 24px;
+}
+
+.result-card.is-pass { border-top-color: var(--success); }
+.result-card.is-fail { border-top-color: var(--danger); }
+
+.result-score {
+    font-size: 52px;
+    font-weight: 680;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    margin: 4px 0;
+}
+
+.result-card.is-pass .result-score { color: var(--success-ink); }
+.result-card.is-fail .result-score { color: var(--danger-ink); }
+
+.result-verdict {
+    font-size: 17px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    margin: 4px 0 8px;
+}
+
+.result-verdict.is-pass { color: var(--success-ink); }
+.result-verdict.is-fail { color: var(--danger-ink); }
+
+.plain-list { list-style: none; margin: 0; padding: 0; }
+
+.plain-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.plain-list li:last-child { border-bottom: 0; }
+
+/* The label takes the slack and wraps inside itself; the trailing meta and
+   button keep their size, so rows stay one line tall in a narrow panel. */
+.plain-list li span:first-child {
+    flex: 1;
+    min-width: 0;
+    margin-right: auto;
+    font-weight: 550;
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+.plain-list li > :not(:first-child) { flex-shrink: 0; }
+
+input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 16px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    font-size: 14px;
+}
+
+.btn-row form { display: inline-flex; }
+
+code {
+    background: var(--surface-2);
+    color: var(--text);
+    padding: 1px 5px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    word-break: break-word;
+}
+
+/* ---------- language switch ---------- */
+.lang-switch { display: flex; gap: 4px; align-items: center; margin-left: auto; }
+
+.lang-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 9px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background var(--speed) ease, color var(--speed) ease;
+}
+
+.lang-btn:hover { color: var(--text); border-color: var(--border-strong); }
+
+.lang-btn.is-active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--on-primary);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}

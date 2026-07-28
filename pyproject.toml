@@ -5,8 +5,13 @@ description = "QuizMonkey - a cross-platform custom quiz app"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
+# Mobile app dependencies only. The web-only packages (fastapi, uvicorn, ...)
+# live in the "web" group below, so `flet build` does not try to bundle them
+# for iOS/Android — uvicorn[standard] pulls in httptools, which has no mobile
+# wheel and breaks the build.
 dependencies = [
-    "flet==0.82.0"
+    "flet==0.82.0",
+    "supabase>=2.31.0",
 ]
 
 [tool.flet]
@@ -29,3 +34,17 @@ export_method = "app-store"
 NSLocationWhenInUseUsageDescription = "Wird derzeit nicht verwendet."
 NSPhotoLibraryUsageDescription = "Wird derzeit nicht verwendet."
 NSCameraUsageDescription = "Wird derzeit nicht verwendet."
+
+[dependency-groups]
+dev = [
+    "flet-desktop>=0.82.0",
+]
+# The web app (web/). Installed for local dev via `uv sync`, but kept out of
+# the mobile build.
+web = [
+    "fastapi>=0.139.2",
+    "itsdangerous>=2.2.0",
+    "jinja2>=3.1.6",
+    "python-multipart>=0.0.32",
+    "uvicorn[standard]>=0.51.0",
+]

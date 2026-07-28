@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% set page = "privacy" %}
+{% block title %}Privacy policy — QuizMonkey{% endblock %}
+
+{% block content %}
+<div class="prose">
+<h1>Privacy policy</h1>
+
+<div class="msg msg-warn">
+    <strong>To do before going live:</strong> replace every
+    <code>[PLACEHOLDER]</code> below with your real details, and conclude a
+    data processing agreement with Supabase. This text is a working draft, not
+    legal advice.
+</div>
+
+<h2>Controller</h2>
+<p>
+    [PLACEHOLDER: name / company]<br>
+    [PLACEHOLDER: address]<br>
+    [PLACEHOLDER: e-mail address]
+</p>
+<p>
+    Supervisory authority: Austrian Data Protection Authority
+    (Österreichische Datenschutzbehörde), Barichgasse 40–42, 1030 Vienna,
+    <a href="mailto:dsb@dsb.gv.at">dsb@dsb.gv.at</a>. You have the right to
+    lodge a complaint there (Art. 77 GDPR, § 24 DSG).
+</p>
+
+<h2>What we process, and why</h2>
+<dl>
+    <dt>Account data — first name, last name, e-mail address, role</dt>
+    <dd>
+        To create and run your account and to show trainers who is in their
+        group. Legal basis: Art. 6(1)(b) GDPR (performance of a contract).
+        Stored until you delete your account.
+    </dd>
+
+    <dt>Groups, memberships and invitations</dt>
+    <dd>
+        So trainers can release quizzes to a defined circle of people. An
+        invitation stores the e-mail address it was sent to. Legal basis:
+        Art. 6(1)(b) GDPR. Deleted when the group or the membership is removed.
+    </dd>
+
+    <dt>Quizzes and completion counts</dt>
+    <dd>
+        Quiz content belongs to the trainer who created it. How often you
+        completed a quiz is stored <em>on your own device</em> in the mobile
+        app and is not transmitted to us.
+    </dd>
+
+    <dt>Test results — pass/fail, score in percent, attempts, time</dt>
+    <dd>
+        When a trainer releases a test to a group you are in and you take it,
+        the result of each attempt is stored: whether you passed, your score in
+        percent, the attempt number and when you took it. The trainer who owns
+        the test can see these results for the trainees in their groups, so they
+        can tell who has passed. Legal basis: Art. 6(1)(b) GDPR (carrying out
+        the training relationship). The score is a plain comparison against the
+        pass mark set by the trainer, not an automated decision producing legal
+        or similarly significant effects (Art. 22 GDPR). Results are kept until
+        the test is deleted, until the trainer resets your attempts, or until
+        you delete your account, whichever comes first.
+    </dd>
+
+    <dt>Invitation e-mails</dt>
+    <dd>
+        When a trainer invites someone to a group, that e-mail address receives
+        one notice telling them who invited them and to which group. Legal
+        basis: Art. 6(1)(f) GDPR (legitimate interest in letting an invited
+        person know). The mail is sent from our own mail server — no external
+        mail provider is involved, so no data is passed to a third party. If
+        the invitation is declined or removed, the address is deleted with it.
+    </dd>
+
+    <dt>Server log data</dt>
+    <dd>
+        [PLACEHOLDER: confirm with your hosting provider what is logged and for
+        how long — typically IP address, time, requested page, for a few days,
+        for security and troubleshooting.] Legal basis: Art. 6(1)(f) GDPR
+        (legitimate interest in operating the service securely).
+    </dd>
+</dl>
+
+<h2>Cookies</h2>
+<p>
+    One cookie, <code>qm_session</code>, which keeps you signed in. It is
+    strictly necessary for the login to work, so no consent is required
+    (§ 165(3) TKG 2021). It is signed, <code>HttpOnly</code> and
+    <code>SameSite=Lax</code>, and expires after 14 days at the latest.
+</p>
+<p>
+    There are <strong>no</strong> analytics, tracking, advertising or profiling
+    cookies. We do not use Google Analytics, Meta Pixel or comparable tools.
+</p>
+
+<h2>No third-party requests</h2>
+<p>
+    All fonts, styles and scripts are served from this server. Nothing is
+    loaded from external sources such as Google Fonts or a CDN, so your IP
+    address is not disclosed to any third party when you use this site. A
+    Content Security Policy enforces this technically (Art. 25 GDPR, data
+    protection by design).
+</p>
+
+<h2>Processors</h2>
+<p>
+    <strong>Supabase</strong> (Supabase, Inc., 970 Toa Payoh North, Singapore,
+    and its EU infrastructure) hosts the database and the authentication
+    service. A data processing agreement under Art. 28 GDPR is in place
+    [PLACEHOLDER: conclude it at supabase.com/legal/dpa and confirm here].
+    Your database region is
+    [PLACEHOLDER: e.g. eu-central-1 / Frankfurt]. Where data is transferred
+    outside the EEA, this is based on the EU Standard Contractual Clauses
+    (Art. 46(2)(c) GDPR).
+</p>
+<p>
+    <strong>Hosting</strong>: [PLACEHOLDER: name and address of your hosting
+    provider, plus the Art. 28 agreement].
+</p>
+
+<h2>Your rights</h2>
+<ul>
+    <li>Access to your data (Art. 15 GDPR)</li>
+    <li>Rectification (Art. 16 GDPR)</li>
+    <li>Erasure (Art. 17 GDPR)</li>
+    <li>Restriction of processing (Art. 18 GDPR)</li>
+    <li>Data portability (Art. 20 GDPR)</li>
+    <li>Objection to processing based on legitimate interest (Art. 21 GDPR)</li>
+</ul>
+<p>
+    To exercise any of these, write to the address above. Deleting your account
+    removes your profile, your memberships, the quizzes and tests you created,
+    and your test results.
+</p>
+
+<h2>Minimum age</h2>
+<p>
+    In Austria, people aged 14 and over may consent to the use of information
+    society services themselves (§ 4(4) DSG). For younger users, a legal
+    guardian must consent.
+</p>
+
+<p><small>Last updated: [PLACEHOLDER: date]</small></p>
+</div>
+{% endblock %}

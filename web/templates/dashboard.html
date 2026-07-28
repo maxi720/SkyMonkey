@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% set page = "dashboard" %}
+{% block title %}{{ t("nav.dashboard") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+{# The create actions live in the sidebar, so they are deliberately not
+   repeated here. #}
+<div class="page-head">
+    <div>
+        <h1>{{ t("dash.hello", profile.first_name or profile.display_name) }}</h1>
+        <p class="lead">{{ t("dash.subtitle") }}</p>
+    </div>
+</div>
+
+{% if profile.is_trainer %}
+    <div class="stat-grid">
+        <a class="stat" href="/groups">
+            <span class="stat-value">{{ group_count }}</span>
+            <span class="stat-label">{{ t("dash.stat_groups") }}</span>
+        </a>
+        <a class="stat" href="/groups">
+            <span class="stat-value">{{ trainee_count }}</span>
+            <span class="stat-label">{{ t("dash.stat_trainees") }}</span>
+        </a>
+        <a class="stat" href="/quizzes">
+            <span class="stat-value">{{ quiz_count }}</span>
+            <span class="stat-label">{{ t("dash.stat_quizzes") }}</span>
+        </a>
+        <a class="stat" href="/tests">
+            <span class="stat-value">{{ test_count }}</span>
+            <span class="stat-label">{{ t("dash.stat_tests") }}</span>
+        </a>
+    </div>
+
+    <div class="panel-grid">
+        <section class="card">
+            <div class="card-head">
+                <h2>{{ t("dash.recent_tests") }}</h2>
+                <a href="/tests">{{ t("dash.view_all") }}</a>
+            </div>
+            {% if tests %}
+                <ul class="plain-list">
+                    {% for x in tests %}
+                        <li>
+                            <span>{{ x.name }}</span>
+                            <span class="muted">{{ x.question_count }} ·
+                                {{ x.pass_percent }} %</span>
+                            <a class="btn btn-ghost btn-small"
+                               href="/tests/{{ x.id }}/results">{{ t("dash.results") }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="muted">{{ t("dash.no_tests") }}</p>
+                <p><a class="btn btn-ghost btn-small" href="/tests/new">{{ t("dash.new_test") }}</a></p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2>{{ t("dash.recent_quizzes") }}</h2>
+                <a href="/quizzes">{{ t("dash.view_all") }}</a>
+            </div>
+            {% if quizzes %}
+                <ul class="plain-list">
+                    {% for q in quizzes %}
+                        <li>
+                            <span>{{ q.name }}</span>
+                            {% if q.changed %}<span class="muted">{{ q.changed }}</span>{% endif %}
+                            <a class="btn btn-ghost btn-small"
+                               href="/quizzes/{{ q.id }}">{{ t("quizzes.edit") }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="muted">{{ t("dash.no_quizzes") }}</p>
+                <p><a class="btn btn-ghost btn-small" href="/quizzes/new">{{ t("dash.new_quiz") }}</a></p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <div class="card-head">
+                <h2>{{ t("dash.your_groups") }}</h2>
+                <a href="/groups">{{ t("dash.view_all") }}</a>
+            </div>
+            {% if groups %}
+                <ul class="plain-list">
+                    {% for g in groups[:5] %}
+                        <li>
+                            <span>{{ g.name }}</span>
+                            <span class="badge">{{ g.member_count }}</span>
+                            <a class="btn btn-ghost btn-small"
+                               href="/groups/{{ g.id }}">{{ t("dash.open") }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="muted">{{ t("dash.no_groups") }}</p>
+                <p><a class="btn btn-ghost btn-small" href="/groups">{{ t("dash.groups_cta") }}</a></p>
+            {% endif %}
+        </section>
+    </div>
+
+{% else %}
+    <div class="stat-grid">
+        <div class="stat">
+            <span class="stat-value">{{ test_count }}</span>
+            <span class="stat-label">{{ t("dash.stat_released") }}</span>
+        </div>
+        <div class="stat">
+            <span class="stat-value">{{ open_count }}</span>
+            <span class="stat-label">{{ t("dash.stat_open") }}</span>
+        </div>
+    </div>
+
+    <div class="panel-grid">
+        <section class="card">
+            <div class="card-head">
+                <h2>{{ t("dash.your_tests") }}</h2>
+                <a href="/take">{{ t("dash.view_all") }}</a>
+            </div>
+            {% if tests %}
+                <ul class="plain-list">
+                    {% for x in tests %}
+                        <li>
+                            <span>{{ x.name }}</span>
+                            {% if x.status and x.status.passed %}
+                                <span class="badge badge-pass">{{ t("take.passed") }}</span>
+                            {% elif x.status and x.status.locked %}
+                                <span class="badge badge-fail">{{ t("take.locked") }}</span>
+                            {% endif %}
+                            <a class="btn btn-ghost btn-small"
+                               href="/take/{{ x.id }}">{{ t("dash.open") }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="muted">{{ t("take.none") }}</p>
+            {% endif %}
+        </section>
+
+        <section class="card">
+            <div class="card-head"><h2>{{ t("dash.trainee_title") }}</h2></div>
+            <p class="muted">{{ t("dash.trainee_text") }}</p>
+            <p class="muted">{{ t("dash.trainee_switch") }}</p>
+            <p><a class="btn btn-ghost" href="/settings">{{ t("dash.to_settings") }}</a></p>
+        </section>
+    </div>
+{% endif %}
+{% endblock %}

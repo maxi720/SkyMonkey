@@ -7,6 +7,10 @@ from pathlib import Path
 
 import flet as ft
 
+from auth_ui import AuthView
+from backend import Backend, Profile
+from tests_ui import TestsView
+
 
 class QuizApp:
     def __init__(self, page: ft.Page):
@@ -16,21 +20,38 @@ class QuizApp:
         # Self-hosted font bundled in assets — no runtime fetch from Google
         # Fonts servers, so no user IP is leaked (GDPR/DSGVO compliant).
         self.page.fonts = {"Fredoka": "fonts/Fredoka.ttf"}
-        self.page.theme_mode = ft.ThemeMode.DARK
+        self.page.theme_mode = ft.ThemeMode.LIGHT
         self.page.horizontal_alignment = ft.CrossAxisAlignment.STRETCH
         self.page.padding = 0
 
-        self.color_bg = "#0F172A"
-        self.color_text = "#F8FAFC"
-        self.color_muted = "#CBD5E1"
+        # Swiss-modernist palette — the same tokens the web app uses in
+        # web/static/app.css, so both halves stay one product. Neutrals carry no
+        # colour cast, so the single indigo accent is the only chroma; green and
+        # red mean only right and wrong.
+        self.color_bg = "#FAFAFA"
+        self.color_surface = "#FFFFFF"
+        self.color_surface_2 = "#F4F4F5"
+        self.color_border = "#E4E4E7"
+        self.color_border_strong = "#D4D4D8"
+        self.color_text = "#18181B"
+        self.color_muted = "#71717A"
+        # Label colour for anything sitting on a filled accent surface.
+        self.color_on_primary = "#FFFFFF"
+
         self.color_primary = "#4F46E5"
-        self.color_info = "#2563EB"
-        self.color_success = "#16A34A"
-        self.color_danger = "#DC2626"
-        self.color_warning = "#EA580C"
-        self.color_answer = "#334155"
-        self.color_answer_border = "#64748B"
-        self.color_stat = "#F59E0B"
+        self.color_primary_press = "#3730A3"
+        self.color_primary_soft = "#EEF2FF"
+        self.color_primary_ink = "#312E81"
+
+        self.color_info = "#1D4ED8"
+        self.color_success = "#15803D"
+        self.color_success_ink = "#14532D"
+        self.color_danger = "#B91C1C"
+        self.color_danger_ink = "#7F1D1D"
+        self.color_warning = "#A16207"
+        self.color_answer = self.color_surface
+        self.color_answer_border = self.color_border
+        self.color_stat = "#9A5B06"
         self.logo_src = "icon.png"
         self.page.bgcolor = self.color_bg
 
@@ -66,6 +87,21 @@ class QuizApp:
         self.fragen: list[list[str]] = []
         self.current_question = 0
         self.correct_answer = ""
+        self.correct_set: set[str] = set()
+        self.is_multi = False
+        self.selected_set: set[str] = set()
+        # Tinted fills for the answer feedback. `success_soft` marks an answer
+        # the user got right; `success_faint` is the much softer green for a
+        # correct answer they did not pick (multiple choice only), so the two
+        # never read the same.
+        # Two clearly distinct greens: the answer the user got right is filled
+        # noticeably, the correct one they missed only tinted. On the web the
+        # same distinction is carried by a border rule, which the Flet buttons
+        # do not have, so these fills need more separation than the web tokens.
+        self.color_success_soft = "#DCFCE7"
+        self.color_success_faint = "#F0FDF4"
+        self.color_danger_soft = "#FEE2E2"
+        self.action_button: ft.Button | None = None
         self.correct_count = 0
         self.selected_answer: str | None = None
         self.answer_locked = False
@@ -90,9 +126,99 @@ class QuizApp:
         }
         self._last_resize_signature: tuple[int, int, str] | None = None
 
+        # Signed-in user, or None while offline ("continue without login").
+        self.backend = Backend()
+        self.profile: Profile | None = None
+        self.auth_view = AuthView(self)
+        # Cached pending group invitations; None means "not loaded yet".
+        self._pending_invites: list[dict] | None = None
+
         self._refresh_layout_cache(force=True)
 
+        self._start()
+
+    # ------------------------------------------------------------------
+    # Startup: restore a session, or ask the user to sign in
+    # ------------------------------------------------------------------
+    def _start(self) -> None:
+        if not self.backend.available:
+            # Without a configured backend the login form could never succeed,
+            # so go straight to the quizzes instead of showing a dead end.
+            self.continue_offline()
+            return
+
+        if self._restore_session():
+            return
+
+        self.auth_view.show()
+
+    def _restore_session(self) -> bool:
+        """Sign back in with the tokens kept from the last run."""
+        session = self.state.get("session")
+        if not isinstance(session, dict):
+            return False
+        access = session.get("access_token")
+        refresh = session.get("refresh_token")
+        if not access or not refresh:
+            return False
+
+        try:
+            self.backend.client.auth.set_session(access, refresh)
+            profile = self.backend.current_profile()
+        except Exception:
+            profile = None
+
+        if profile is None:
+            self._store_session(None)
+            return False
+
+        self.profile = profile
         self.show_startpage()
+        return True
+
+    def _store_session(self, session) -> None:
+        """Persist (or clear) the tokens needed to stay signed in.
+
+        Stored in the app's own sandboxed data directory. Not the Keychain —
+        good enough for a quiz app, but worth revisiting if the account ever
+        holds anything sensitive.
+        """
+        if session is None:
+            self.state.pop("session", None)
+        else:
+            self.state["session"] = {
+                "access_token": session.access_token,
+                "refresh_token": session.refresh_token,
+            }
+        self._save_state()
+
+    def enter_signed_in(self, profile: Profile) -> None:
+        self.profile = profile
+        self._pending_invites = None
+        # Clear the login form's spinner state; otherwise a later sign-out
+        # returns to a login button still stuck on "Please wait...".
+        self.auth_view.busy = False
+        try:
+            session = self.backend.client.auth.get_session()
+        except Exception:
+            session = None
+        self._store_session(session)
+        self.show_startpage()
+        self.show_message(f"Welcome, {profile.first_name or profile.display_name}!")
+
+    def continue_offline(self) -> None:
+        """Use the app without an account: local quizzes only."""
+        self.profile = None
+        self.show_startpage()
+
+    def sign_out(self) -> None:
+        if self.backend.available:
+            self.backend.sign_out()
+        self.profile = None
+        self._pending_invites = None
+        self._store_session(None)
+        self.auth_view.busy = False
+        self.auth_view.show()
 
     def show_message(self, text: str) -> None:
         self.page.show_dialog(
@@ -239,7 +365,7 @@ class QuizApp:
         Material icons render from the bundled font — no network (DSGVO safe)."""
         return ft.Button(
             content=ft.Icon(
-                icon, color=self.color_text, size=self._get_text_size(size)
+                icon, color=self.color_on_primary, size=self._get_text_size(size)
             ),
             on_click=handler,
             style=self.make_button_style(
@@ -272,17 +398,20 @@ class QuizApp:
         self,
         bgcolor,
         text_size=20,
-        radius=12,
+        radius=8,
         padding=None,
         side=None,
         weight=ft.FontWeight.W_600,
         font_family=None,
+        color=None,
     ) -> ft.ButtonStyle:
+        """Filled button. The label defaults to `on_primary` because these sit
+        on an accent colour; pass `color` explicitly for buttons on a surface."""
         return ft.ButtonStyle(
             text_style=ft.TextStyle(
                 size=text_size, weight=weight, font_family=font_family
             ),
-            color=self.color_text,
+            color=color or self.color_on_primary,
             bgcolor=bgcolor,
             padding=padding,
             shape=ft.RoundedRectangleBorder(radius=radius),
@@ -313,6 +442,8 @@ class QuizApp:
             self.show_question_page()
         elif self._current_view == "statistics":
             self.show_statistics()
+        elif self._current_view == "auth":
+            self.auth_view.show()
 
     def _set_root(self, *controls: ft.Control) -> None:
         """Mount a view inside a SafeArea so content never overlaps the
@@ -396,11 +527,18 @@ class QuizApp:
                 f"Row {row_number}: At least 2 answer options required.",
             )
 
-        if row[5] not in answers:
-            return (
-                False,
-                f"Row {row_number}: correctAnswer must exactly match one answer.",
-            )
+        # correctAnswer may list several correct answers separated by "|"
+        # (multiple choice). Each must match one of the answer columns.
+        correct = [c.strip() for c in row[5].split("|") if c.strip()]
+        if not correct:
+            return False, f"Row {row_number}: no correct answer given."
+        for c in correct:
+            if c not in answers:
+                return (
+                    False,
+                    f"Row {row_number}: every correctAnswer must exactly match "
+                    "one answer.",
+                )
 
         return True, None
 
@@ -475,6 +613,8 @@ class QuizApp:
             expand=True,
         )
 
+        invites_banner = self._invitations_banner()
+
         # Bottom actions: Import (left) + Delete (right), always side by side,
         # equal size, rectangular, with bold text scaled to fit the button.
         container_pad = self._get_pad(side_padding)
@@ -491,7 +631,7 @@ class QuizApp:
                 style=self.make_button_style(
                     color,
                     text_size=action_text_size,
-                    radius=8,  # slightly rounded corners
+                    radius=8,  # matches the web button radius
                     weight=ft.FontWeight.W_800,
                     padding=ft.Padding.symmetric(horizontal=self._get_pad(6)),
                 ),
@@ -503,14 +643,14 @@ class QuizApp:
                 controls=[
                     ft.Icon(
                         ft.Icons.BAR_CHART_ROUNDED,
-                        color=self.color_text,
+                        color=self.color_on_primary,
                         size=action_text_size,
                     ),
                     ft.Text(
                         "Statistic",
                         weight=ft.FontWeight.W_800,
                         size=action_text_size,
-                        color=self.color_text,
+                        color=self.color_on_primary,
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
@@ -521,18 +661,53 @@ class QuizApp:
             style=self.make_button_style(self.color_stat, radius=8),
         )
 
-        action_buttons = ft.Container(
-            content=ft.Column(
+        # A signed-in trainee can also take tests their trainer released. Tests
+        # run against the server (not offline), so this only appears when signed
+        # in with a working backend.
+        tests_button = ft.Button(
+            content=ft.Row(
                 controls=[
-                    stat_button,
-                    ft.Row(
-                        controls=[
-                            action_btn("Import", self.color_success, self.upload_csv),
-                            action_btn("Delete", self.color_danger, self.remove_csv),
-                        ],
-                        spacing=btn_spacing,
+                    ft.Icon(
+                        ft.Icons.ASSIGNMENT_TURNED_IN_ROUNDED,
+                        color=self.color_on_primary,
+                        size=action_text_size,
+                    ),
+                    ft.Text(
+                        "Tests",
+                        weight=ft.FontWeight.W_800,
+                        size=action_text_size,
+                        color=self.color_on_primary,
                     ),
                 ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=self._get_pad(8),
+            ),
+            on_click=lambda e: self.open_tests(),
+            height=action_height,
+            style=self.make_button_style(self.color_info, radius=8),
+        )
+
+        # Offline users manage their own CSV files. A signed-in trainee gets
+        # quizzes from their trainer instead, so importing and deleting would
+        # only be confusing — statistics and the quiz list are enough.
+        bottom_controls: list[ft.Control] = []
+        if self.profile is not None and self.backend.available:
+            bottom_controls.append(tests_button)
+        bottom_controls.append(stat_button)
+        if self.profile is None:
+            bottom_controls.append(
+                ft.Row(
+                    controls=[
+                        action_btn("Import", self.color_success, self.upload_csv),
+                        action_btn("Delete", self.color_danger, self.remove_csv),
+                    ],
+                    spacing=btn_spacing,
+                )
+            )
+
+        action_buttons = ft.Container(
+            content=ft.Column(
+                controls=bottom_controls,
                 spacing=btn_spacing,
                 horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
             ),
@@ -544,8 +719,258 @@ class QuizApp:
             ),
         )
 
-        self._set_root(quiz_area, action_buttons)
+        root_controls = [self._account_bar()]
+        if invites_banner is not None:
+            root_controls.append(invites_banner)
+        root_controls += [quiz_area, action_buttons]
+        self._set_root(*root_controls)
         self.page.update()
+
+    def open_tests(self) -> None:
+        """Open the server-backed tests screen (signed-in trainees only)."""
+        TestsView(self).open()
+
+    # ------------------------------------------------------------------
+    # Group invitations (trainee side)
+    # ------------------------------------------------------------------
+    def _invitations_banner(self) -> ft.Control | None:
+        """A card per pending group invitation, with Accept / Decline.
+
+        Only for signed-in users. Loaded lazily and cached, so the repeated
+        start-page renders triggered by window resizes don't hammer the
+        network — the cache is cleared whenever an invitation is acted on.
+        """
+        if self.profile is None or not self.backend.available:
+            return None
+
+        if self._pending_invites is None:
+            try:
+                self._pending_invites = self.backend.pending_invitations()
+            except Exception:
+                self._pending_invites = []
+
+        if not self._pending_invites:
+            return None
+
+        cards: list[ft.Control] = []
+        for inv in self._pending_invites:
+            who = inv["trainer_name"] or "A trainer"
+            cards.append(
+                ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Text(
+                                f"{who} invited you to",
+                                size=self._get_text_size(13),
+                                color=self.color_muted,
+                            ),
+                            ft.Text(
+                                inv["group_name"],
+                                size=self._get_text_size(18),
+                                weight=ft.FontWeight.BOLD,
+                                color=self.color_text,
+                            ),
+                            ft.Row(
+                                controls=[
+                                    ft.Button(
+                                        content="Accept",
+                                        on_click=lambda e, m=inv["id"]: self._accept_invite(m),
+                                        expand=True,
+                                        style=self.make_button_style(
+                                            self.color_success, radius=8
+                                        ),
+                                    ),
+                                    ft.Button(
+                                        content="Decline",
+                                        on_click=lambda e, m=inv["id"]: self._decline_invite(m),
+                                        expand=True,
+                                        style=self.make_button_style(
+                                            self.color_surface,
+                                            radius=8,
+                                            color=self.color_text,
+                                            side=ft.BorderSide(
+                                                1, self.color_border_strong
+                                            ),
+                                        ),
+                                    ),
+                                ],
+                                spacing=self._get_pad(8),
+                            ),
+                        ],
+                        spacing=self._get_pad(6),
+                        tight=True,
+                    ),
+                    bgcolor=self.color_surface,
+                    border=ft.Border.all(1, self.color_border),
+                    border_radius=10,
+                    padding=self._get_pad(14),
+                    margin=ft.Margin.only(bottom=self._get_pad(8)),
+                )
+            )
+
+        return ft.Container(
+            content=ft.Column(controls=cards, spacing=0, tight=True),
+            padding=ft.Padding.only(
+                left=self._get_pad(self._side_padding()),
+                right=self._get_pad(self._side_padding()),
+                top=self._get_pad(8),
+            ),
+        )
+
+    def _accept_invite(self, member_id: str) -> None:
+        try:
+            self.backend.accept_invitation(member_id)
+            self.show_message("Invitation accepted.")
+        except Exception as ex:
+            self.show_message(f"Could not accept: {ex}")
+        self._pending_invites = None
+        self.show_startpage()
+
+    def _decline_invite(self, member_id: str) -> None:
+        try:
+            self.backend.decline_invitation(member_id)
+            self.show_message("Invitation declined.")
+        except Exception as ex:
+            self.show_message(f"Could not decline: {ex}")
+        self._pending_invites = None
+        self.show_startpage()
+
+    def _account_bar(self) -> ft.Control:
+        """Top-right account button: the entry point to profile actions."""
+        if self.profile is not None:
+            icon = ft.Icons.ACCOUNT_CIRCLE_ROUNDED
+            handler = lambda e: self._show_account_menu()  # noqa: E731
+        elif self.backend.available:
+            # Offline by choice — offer the way back to the login screen.
+            icon = ft.Icons.LOGIN_ROUNDED
+            handler = lambda e: self.auth_view.show()  # noqa: E731
+        else:
+            return ft.Container(height=self._get_pad(4))
+
+        return ft.Container(
+            content=ft.Row(
+                controls=[
+                    ft.IconButton(
+                        icon=icon,
+                        icon_color=self.color_muted,
+                        icon_size=self._get_text_size(30),
+                        on_click=handler,
+                    )
+                ],
+                alignment=ft.MainAxisAlignment.END,
+            ),
+            padding=ft.Padding.only(
+                right=self._get_pad(self._side_padding()),
+                top=self._get_pad(2),
+            ),
+        )
+
+    def _show_account_menu(self) -> None:
+        """Minimal account sheet.
+
+        Password change, account deletion and the trainer/trainee switch land
+        here in the next step; for now it identifies the user and offers a way
+        back out.
+        """
+        if self.profile is None:
+            return
+        profile = self.profile
+
+        def sign_out(_):
+            self._dismiss_dialog()
+            self.sign_out()
+
+        dialog = self._centered_dialog(
+            "Account",
+            ft.Column(
+                controls=[
+                    ft.Text(
+                        profile.display_name,
+                        weight=ft.FontWeight.BOLD,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    ft.Text(profile.email, text_align=ft.TextAlign.CENTER),
+                    ft.Text(
+                        f"Role: {profile.role}",
+                        color=self.color_muted,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                tight=True,
+            ),
+            actions=[
+                ft.Button(
+                    content="My groups",
+                    on_click=lambda _: self._show_my_groups(),
+                ),
+                ft.Button(content="Sign out", on_click=sign_out),
+                ft.Button(content="Close", on_click=lambda _: self._dismiss_dialog()),
+            ],
+        )
+        self.page.show_dialog(dialog)
+        self.page.update()
+
+    def _show_my_groups(self) -> None:
+        """List the groups the trainee has joined, with a Leave button each."""
+        self._dismiss_dialog()
+        try:
+            groups = self.backend.my_groups()
+        except Exception as ex:
+            self.show_message(f"Could not load groups: {ex}")
+            return
+
+        if not groups:
+            body: ft.Control = ft.Text(
+                "You are not in any group yet. When a trainer invites you, the "
+                "invitation shows up on the start page.",
+                text_align=ft.TextAlign.CENTER,
+            )
+            rows: list[ft.Control] = []
+        else:
+            rows = []
+            for g in groups:
+                rows.append(
+                    ft.Row(
+                        controls=[
+                            ft.Text(
+                                g["group_name"],
+                                weight=ft.FontWeight.W_600,
+                                color=self.color_text,
+                                expand=True,
+                            ),
+                            ft.Button(
+                                content="Leave",
+                                on_click=lambda e, m=g["member_id"]: self._leave_group(m),
+                                style=self.make_button_style(
+                                    self.color_danger, radius=8
+                                ),
+                            ),
+                        ],
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    )
+                )
+            body = ft.Column(controls=rows, tight=True, spacing=self._get_pad(10))
+
+        dialog = self._centered_dialog(
+            "My groups",
+            body,
+            actions=[
+                ft.Button(content="Close", on_click=lambda _: self._dismiss_dialog()),
+            ],
+        )
+        self.page.show_dialog(dialog)
+        self.page.update()
+
+    def _leave_group(self, member_id: str) -> None:
+        self._dismiss_dialog()
+        try:
+            self.backend.leave_group(member_id)
+            self.show_message("You left the group.")
+        except Exception as ex:
+            self.show_message(f"Could not leave: {ex}")
+        self._pending_invites = None
+        self.show_startpage()
 
     def load_custom_quizzes(self) -> None:
         self.quiz_buttons.clear()
@@ -654,10 +1079,10 @@ class QuizApp:
                                     f"{count}×",
                                     size=self._get_text_size(24),
                                     weight=ft.FontWeight.BOLD,
-                                    color=self.color_text,
+                                    color=self.color_primary_ink,
                                 ),
-                                bgcolor=self.color_primary,
-                                border_radius=10,
+                                bgcolor=self.color_primary_soft,
+                                border_radius=6,
                                 padding=ft.Padding.symmetric(
                                     horizontal=self._get_pad(14),
                                     vertical=self._get_pad(6),
@@ -666,8 +1091,9 @@ class QuizApp:
                         ],
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
-                    bgcolor="#1E293B",
-                    border_radius=12,
+                    bgcolor=self.color_surface,
+                    border=ft.Border.all(1, self.color_border),
+                    border_radius=10,
                     padding=ft.Padding.symmetric(
                         horizontal=self._get_pad(16), vertical=self._get_pad(14)
                     ),
@@ -1013,6 +1439,11 @@ class QuizApp:
         self._save_progress()
 
         self.correct_answer = frage_data[5]
+        self.correct_set = {c.strip() for c in frage_data[5].split("|") if c.strip()}
+        self.is_multi = len(self.correct_set) > 1
+        if not self.answer_locked:
+            self.selected_set = set()
+        self.action_button = None
         self.answer_buttons = []
         answer_containers: list[ft.Control] = []
 
@@ -1021,8 +1452,8 @@ class QuizApp:
             if answer_text:
                 ans_text = ft.Text(
                     answer_text,
-                    size=self._get_text_size(28),
-                    weight=ft.FontWeight.W_500,
+                    size=self._get_text_size(24),
+                    weight=ft.FontWeight.W_400,
                     color=self.color_text,
                     text_align=ft.TextAlign.LEFT,
                 )
@@ -1034,13 +1465,21 @@ class QuizApp:
                     ),
                     data=answer_text,
                     expand=True,
-                    on_click=lambda e, a=answer_text: self.check_answer(a),
+                    on_click=lambda e, a=answer_text: self._on_answer_tap(a),
                     style=ft.ButtonStyle(
                         color=self.color_text,
                         bgcolor=self.color_answer,
-                        padding=ft.Padding.all(10),
-                        shape=ft.RoundedRectangleBorder(radius=12),
-                        side=ft.BorderSide(2, self.color_answer_border),
+                        padding=ft.Padding.symmetric(
+                            horizontal=self._get_pad(18),
+                            vertical=self._get_pad(16),
+                        ),
+                        # 14 sits between the input radius (10) and the card
+                        # radius (18), so an answer reads softer than a field
+                        # but still nested inside the question block.
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                        # 1px, not 2: a list of options should stay quiet until
+                        # one of them is picked.
+                        side=ft.BorderSide(1, self.color_answer_border),
                     ),
                 )
                 self.answer_buttons.append(btn)
@@ -1048,15 +1487,18 @@ class QuizApp:
                     content=ft.Row([btn]),
                     padding=ft.Padding.symmetric(
                         horizontal=self._get_pad(side_padding),
-                        vertical=self._get_pad(3),
+                        vertical=self._get_pad(6),
                     ),
                 )
                 answer_containers.append(ans_container)
 
-        self.next_button = ft.Button(
-            content="Next",
-            on_click=self.next_question,
-            disabled=not self.answer_locked,
+        # One button for every question: it reads "Check" until the answer is
+        # confirmed (revealing green/red), then becomes "Next" for the next
+        # question. Disabled until at least one answer is selected.
+        self.action_button = ft.Button(
+            content="Next" if self.answer_locked else "Check",
+            on_click=self._do_action,
+            disabled=(not self.answer_locked) and (not self.selected_set),
             style=self._next_btn_style(),
         )
 
@@ -1072,17 +1514,20 @@ class QuizApp:
             on_click=self._ask_leave_quiz,
             tooltip="Menu",
             style=self.make_button_style(
-                self.color_answer,
-                radius=16,
-                side=ft.BorderSide(2, self.color_answer_border),
+                self.color_surface,
+                radius=8,
+                color=self.color_text,
+                side=ft.BorderSide(1, self.color_border_strong),
                 padding=ft.Padding.all(self._get_pad(12)),
             ),
         )
 
+        # The question carries the weight through boldness and the whitespace
+        # under it, not through sheer size — see the styleguide, §12.
         question_text = ft.Text(
             frage_data[0],
             style=ft.TextStyle(
-                size=self._get_text_size(40),
+                size=self._get_text_size(32),
                 weight=ft.FontWeight.W_700,
                 color=self.color_text,
             ),
@@ -1095,13 +1540,13 @@ class QuizApp:
                 left=self._get_pad(side_padding),
                 right=self._get_pad(side_padding),
                 top=self._get_pad(25),
-                bottom=self._get_pad(15),
+                bottom=self._get_pad(26),
             ),
         )
 
-        # Next button sits directly to the right, under the last answer.
+        # The single Check/Next button sits under the last answer, on the right.
         next_container = ft.Container(
-            content=self.next_button,
+            content=self.action_button,
             padding=ft.Padding.only(
                 top=self._get_pad(14),
                 right=self._get_pad(side_padding),
@@ -1137,12 +1582,26 @@ class QuizApp:
             ),
         )
 
+        content_controls: list[ft.Control] = [q_container]
+        if self.is_multi:
+            content_controls.append(
+                ft.Container(
+                    content=ft.Text(
+                        "Select all correct answers.",
+                        size=self._get_text_size(20),
+                        color=self.color_muted,
+                    ),
+                    padding=ft.Padding.only(
+                        left=self._get_pad(side_padding),
+                        right=self._get_pad(side_padding),
+                        bottom=self._get_pad(6),
+                    ),
+                )
+            )
+        content_controls += [*answer_containers, next_container]
+
         question_content = ft.Column(
-            controls=[
-                q_container,
-                *answer_containers,
-                next_container,
-            ],
+            controls=content_controls,
             expand=True,
             spacing=0,
             scroll=ft.ScrollMode.ADAPTIVE,
@@ -1150,8 +1609,14 @@ class QuizApp:
 
         self._set_root(question_content, bottom_container)
 
-        if self.answer_locked and self.selected_answer is not None:
-            self._apply_answer_feedback(self.selected_answer)
+        # Restore the answered/selected state after a re-render (e.g. rotation).
+        if self.answer_locked:
+            self._apply_feedback()
+            if self.action_button is not None:
+                self.action_button.content = "Next"
+        else:
+            for button in self.answer_buttons:
+                self._style_selected(button, button.data in self.selected_set)
 
         self.page.update()
 
@@ -1187,37 +1652,113 @@ class QuizApp:
         self.correct_count = 0
         self.wrong_questions = []
 
-    def check_answer(self, answer: str) -> None:
+    def _on_answer_tap(self, answer: str) -> None:
+        """Select answers (no feedback yet). Multiple choice toggles each tap;
+        single choice keeps only the latest pick."""
         if self.answer_locked:
             return
+        if self.is_multi:
+            if answer in self.selected_set:
+                self.selected_set.discard(answer)
+            else:
+                self.selected_set.add(answer)
+        else:
+            self.selected_set = {answer}
+        for button in self.answer_buttons:
+            self._style_selected(button, button.data in self.selected_set)
+        if self.action_button is not None:
+            self.action_button.disabled = not self.selected_set
+        self.page.update()
 
-        is_correct = answer == self.correct_answer
-        self.selected_answer = answer
+    @staticmethod
+    def _answer_label(button: ft.Button) -> ft.Text:
+        """The Text inside an answer button (Button → Container → Text)."""
+        return button.content.content
+
+    def _style_selected(self, button: ft.Button, selected: bool) -> None:
+        """Selection is shown by a tinted fill, not by a heavier border."""
+        self._paint(
+            button,
+            self.color_primary_soft if selected else self.color_answer,
+            border=self.color_primary if selected else self.color_answer_border,
+            ink=self.color_primary_ink if selected else self.color_text,
+            bold=selected,
+        )
+
+    def _paint(
+        self,
+        button: ft.Button,
+        color: str,
+        border: str | None = None,
+        ink: str | None = None,
+        bold: bool = True,
+    ) -> None:
+        button.style.bgcolor = color
+        button.style.side = ft.BorderSide(1, border or color)
+        label = self._answer_label(button)
+        label.color = ink or self.color_text
+        label.weight = ft.FontWeight.W_600 if bold else ft.FontWeight.W_400
+
+    def _do_action(self, e=None) -> None:
+        """One button: first press checks (reveals green/red), next press moves
+        on to the following question."""
+        if self.answer_locked:
+            self.next_question()
+            return
+        if not self.selected_set:
+            return
         self.answer_locked = True
-
-        if is_correct:
+        if self.selected_set == self.correct_set:
             self.correct_count += 1
         else:
             self.wrong_questions.append(self.fragen[self.current_question])
-
-        self._apply_answer_feedback(answer)
+        self._apply_feedback()
+        if self.action_button is not None:
+            self.action_button.content = "Next"
         self.page.update()
 
-    def _apply_answer_feedback(self, answer: str) -> None:
-        is_correct = answer == self.correct_answer
-
+    def _apply_feedback(self) -> None:
         for button in self.answer_buttons:
-            if button.data == answer:
-                button.style.bgcolor = self.color_success if is_correct else self.color_danger
-            elif button.data == self.correct_answer:
-                button.style.bgcolor = self.color_success
+            answer = button.data
+            is_correct = answer in self.correct_set
+            was_selected = answer in self.selected_set
+            if is_correct and was_selected:
+                self._paint(
+                    button,
+                    self.color_success_soft,
+                    border=self.color_success,
+                    ink=self.color_success_ink,
+                )
+            elif is_correct and not was_selected:
+                # A correct answer the user missed: much softer green for
+                # multiple choice, the full green for single choice.
+                if self.is_multi:
+                    self._paint(
+                        button,
+                        self.color_success_faint,
+                        border=self.color_success,
+                        ink=self.color_success_ink,
+                        bold=False,
+                    )
+                else:
+                    self._paint(
+                        button,
+                        self.color_success_soft,
+                        border=self.color_success,
+                        ink=self.color_success_ink,
+                    )
+            elif was_selected and not is_correct:
+                self._paint(
+                    button,
+                    self.color_danger_soft,
+                    border=self.color_danger,
+                    ink=self.color_danger_ink,
+                )
             button.disabled = True
 
-        if self.next_button:
-            self.next_button.disabled = False
-
-    def next_question(self, e) -> None:
+    def next_question(self, e=None) -> None:
         self.current_question += 1
+        self.selected_set = set()
         self.selected_answer = None
         self.answer_locked = False
         self.show_question_page()
@@ -1279,7 +1820,7 @@ class QuizApp:
         big_icon, big_pad, big_radius = 100, 38, 28
         box_side = self._get_text_size(big_icon) + 2 * self._get_pad(big_pad)
 
-        def score_card(label: str, value: int, color: str) -> ft.Container:
+        def score_card(label: str, value: int, color: str, ink: str) -> ft.Container:
             return ft.Container(
                 content=ft.Column(
                     controls=[
@@ -1287,13 +1828,13 @@ class QuizApp:
                             label,
                             size=self._get_text_size(22),
                             weight=ft.FontWeight.W_600,
-                            color=self.color_text,
+                            color=ink,
                         ),
                         ft.Text(
                             str(value),
                             size=self._get_text_size(56),
-                            weight=ft.FontWeight.BOLD,
-                            color=self.color_text,
+                            weight=ft.FontWeight.W_800,
+                            color=ink,
                         ),
                     ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -1311,8 +1852,15 @@ class QuizApp:
         score_row = ft.Container(
             content=ft.Row(
                 controls=[
-                    score_card("Correct", correct, self.color_success),
-                    score_card("Wrong", wrong, self.color_danger),
+                    score_card(
+                        "Correct",
+                        correct,
+                        self.color_success_soft,
+                        self.color_success_ink,
+                    ),
+                    score_card(
+                        "Wrong", wrong, self.color_danger_soft, self.color_danger_ink
+                    ),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 spacing=gap,
@@ -1438,13 +1986,13 @@ class QuizApp:
                 size=self._get_text_size(22),
                 weight=ft.FontWeight.W_800,
             ),
-            color=self.color_text,
+            color=self.color_on_primary,
             bgcolor=self.color_info,
             padding=ft.Padding.symmetric(
                 horizontal=self._get_pad(18),
                 vertical=self._get_pad(14),
             ),
-            shape=ft.RoundedRectangleBorder(radius=15),
+            shape=ft.RoundedRectangleBorder(radius=8),
         )
 
     def _next_btn_style(self) -> ft.ButtonStyle:
@@ -1452,16 +2000,23 @@ class QuizApp:
         # on smaller screens so it always fits.
         return ft.ButtonStyle(
             text_style=ft.TextStyle(
-                size=self._get_text_size(42),
-                weight=ft.FontWeight.W_800,
+                size=self._get_text_size(34),
+                weight=ft.FontWeight.W_700,
             ),
-            color=self.color_text,
-            bgcolor=self.color_info,
+            # The one filled primary action on the screen.
+            color=self.color_on_primary,
+            bgcolor={
+                ft.ControlState.DEFAULT: self.color_primary,
+                ft.ControlState.PRESSED: self.color_primary_press,
+                ft.ControlState.DISABLED: ft.Colors.with_opacity(
+                    0.4, self.color_primary
+                ),
+            },
             padding=ft.Padding.symmetric(
                 horizontal=self._get_pad(26),
-                vertical=self._get_pad(20),
+                vertical=self._get_pad(18),
             ),
-            shape=ft.RoundedRectangleBorder(radius=18),
+            shape=ft.RoundedRectangleBorder(radius=8),
         )
 
     def _on_resize(self, e) -> None:

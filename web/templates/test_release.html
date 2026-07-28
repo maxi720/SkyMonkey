@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set page = "tests" %}
+{% block title %}{{ t("quiz.release_title") }} — {{ test.name }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<p class="muted"><a href="/tests">&larr; {{ t("test.back") }}</a></p>
+<h1>{{ t("quiz.release_title") }}</h1>
+<p class="lead">{{ test.name }}</p>
+
+<section class="card">
+    <p class="muted">{{ t("test.release_text") }}</p>
+    {% if groups %}
+        {% for g in groups %}
+            <form method="post" action="/tests/{{ test.id }}/share"
+                  class="share-row"
+                  {% if g.id in shared_ids %}data-confirm="{{ t('test.withdraw_confirm') }}"{% endif %}>
+                <input type="hidden" name="group_id" value="{{ g.id }}">
+                <span>{{ g.name }}</span>
+                {% if g.id in shared_ids %}
+                    <span class="badge badge-trainer">{{ t("quiz.released") }}</span>
+                    <button class="btn btn-ghost btn-small" type="submit">
+                        {{ t("quiz.withdraw") }}
+                    </button>
+                {% else %}
+                    <input type="hidden" name="shared" value="1">
+                    <button class="btn btn-info btn-small" type="submit">
+                        {{ t("quiz.release") }}
+                    </button>
+                {% endif %}
+            </form>
+        {% endfor %}
+    {% else %}
+        <p class="muted">
+            {{ t("quiz.no_groups", '<a href="/groups">' ~ t("quiz.create_group_link") ~ "</a>") | safe }}
+        </p>
+    {% endif %}
+</section>
+{% endblock %}

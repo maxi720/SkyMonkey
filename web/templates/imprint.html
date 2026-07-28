@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% set page = "imprint" %}
+{% block title %}Imprint — QuizMonkey{% endblock %}
+
+{% block content %}
+<div class="prose">
+<h1>Imprint</h1>
+
+<div class="msg msg-warn">
+    <strong>To do before going live:</strong> Austrian law (§ 5 ECG, § 25
+    MedienG) requires a complete imprint. Fill in the placeholders below;
+    leaving them empty is itself an administrative offence.
+</div>
+
+<dl>
+    <dt>Media owner and publisher</dt>
+    <dd>[PLACEHOLDER: name / company, legal form]</dd>
+
+    <dt>Address</dt>
+    <dd>[PLACEHOLDER: street, postcode, city, country]</dd>
+
+    <dt>Contact</dt>
+    <dd>[PLACEHOLDER: e-mail address, phone number]</dd>
+
+    <dt>Company register number and court</dt>
+    <dd>[PLACEHOLDER, if you are registered]</dd>
+
+    <dt>VAT identification number</dt>
+    <dd>[PLACEHOLDER, if you have one]</dd>
+
+    <dt>Trade authority / chamber membership</dt>
+    <dd>[PLACEHOLDER: e.g. WKO membership, applicable trade regulations]</dd>
+
+    <dt>Purpose of this site</dt>
+    <dd>Creating and sharing quizzes for training purposes.</dd>
+</dl>
+
+<h2>Open source components</h2>
+<p>
+    QuizMonkey is built on freely licensed components. None of them require
+    attribution on this page; they are listed for transparency.
+</p>
+<div class="table-scroll">
+<table>
+    <thead>
+        <tr><th>Component</th><th>Licence</th></tr>
+    </thead>
+    <tbody>
+        <tr><td>FastAPI</td><td>MIT</td></tr>
+        <tr><td>Starlette</td><td>BSD-3-Clause</td></tr>
+        <tr><td>Uvicorn</td><td>BSD-3-Clause</td></tr>
+        <tr><td>Jinja2</td><td>BSD-3-Clause</td></tr>
+        <tr><td>itsdangerous</td><td>BSD-3-Clause</td></tr>
+        <tr><td>htmx</td><td>BSD-2-Clause</td></tr>
+        <tr><td>supabase-py</td><td>MIT</td></tr>
+        <tr><td>Flet (mobile app)</td><td>Apache-2.0</td></tr>
+    </tbody>
+</table>
+</div>
+<p class="muted">
+    Typography uses the fonts already installed on your device, so no font
+    licence applies and nothing is downloaded from a third party.
+</p>
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% set page = "quizzes" %}
+{% block title %}{{ t("quizzes.title") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<h1>{{ t("quizzes.title") }}</h1>
+<p class="lead">{{ t("quizzes.lead") }}</p>
+
+<div class="btn-row" style="margin-bottom:1.25rem">
+    <a class="btn btn-success" href="/quizzes/new">+ {{ t("quizzes.new") }}</a>
+</div>
+
+<section class="card form-narrow">
+    <h2 style="margin-top:0">{{ t("quizzes.import_title") }}</h2>
+    <p class="muted">{{ t("quizzes.import_text") | safe }}</p>
+    <form method="post" action="/quizzes/import" enctype="multipart/form-data">
+        <label for="file">{{ t("quizzes.file") }}</label>
+        <input id="file" name="file" type="file" accept=".csv,text/csv" required>
+
+        <label for="import-name">{{ t("quizzes.name_optional") }}</label>
+        <input id="import-name" name="name" type="text"
+               placeholder="{{ t('quizzes.name_placeholder') }}">
+
+        <label for="import-notes">{{ t("quiz.notes") }}</label>
+        <textarea id="import-notes" name="notes" rows="3"
+                  placeholder="{{ t('quiz.notes_placeholder') }}"></textarea>
+
+        <button class="btn" type="submit">{{ t("quizzes.import") }}</button>
+    </form>
+</section>
+
+<h2>{{ t("quizzes.yours") }}</h2>
+{% if quizzes %}
+    {# Each quiz is an accordion: click the header to expand its details. Native
+       <details>, so it needs no JavaScript and works under the strict CSP. #}
+    <div class="quiz-list">
+    {% for q in quizzes %}
+        <details class="quiz-item">
+            <summary>
+                <span class="quiz-item-name">{{ q.name }}</span>
+                {# Actions live inside the summary so they show while collapsed.
+                   data-no-toggle (app.js) stops a click here from opening the
+                   panel. #}
+                <span class="quiz-item-actions" data-no-toggle>
+                    <a class="btn btn-ghost btn-small"
+                       href="/quizzes/{{ q.id }}">{{ t("quizzes.edit") }}</a>
+                    <a class="btn btn-info btn-small"
+                       href="/quizzes/{{ q.id }}/release">{{ t("quiz.release") }}</a>
+                    <a class="btn btn-ghost btn-small"
+                       href="/quizzes/{{ q.id }}/export">{{ t("quizzes.export") }}</a>
+                    <form method="post" action="/quizzes/{{ q.id }}/delete"
+                          data-confirm="{{ t('quizzes.delete_confirm') }}">
+                        <button class="btn btn-danger btn-small" type="submit">
+                            {{ t("quizzes.delete") }}
+                        </button>
+                    </form>
+                </span>
+            </summary>
+            <div class="quiz-item-body">
+                <p class="muted small-note">
+                    {{ q.count }} {{ t("quizzes.questions") }}
+                </p>
+
+                <h3>{{ t("quiz.notes") }}</h3>
+                {% if q.notes %}
+                    <p style="white-space:pre-wrap">{{ q.notes }}</p>
+                {% else %}
+                    <p class="muted">{{ t("quiz.note_empty") }}</p>
+                {% endif %}
+
+                <h3>{{ t("quiz.released_to") }}</h3>
+                {% if q.groups %}
+                    <ul class="tag-list">
+                        {% for g in q.groups %}<li>{{ g }}</li>{% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="muted">{{ t("quiz.released_none") }}</p>
+                {% endif %}
+
+                <p class="muted small-note">
+                    {{ t("quiz.created") }}: {{ q.created or "—" }}
+                    &nbsp;·&nbsp;
+                    {{ t("quiz.updated") }}: {{ q.updated or "—" }}
+                </p>
+            </div>
+        </details>
+    {% endfor %}
+    </div>
+{% else %}
+    <div class="card">
+        <p class="muted" style="margin:0">{{ t("quizzes.none") }}</p>
+    </div>
+{% endif %}
+{% endblock %}

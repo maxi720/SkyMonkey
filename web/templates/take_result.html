@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set page = "take" %}
+{% block title %}{{ t("take.result") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<h1>{{ test.name if test else t("take.result") }}</h1>
+
+<section class="card result-card {{ 'is-pass' if passed else 'is-fail' }}">
+    <p class="result-score">{{ percent }} %</p>
+    <p class="result-verdict {{ 'is-pass' if passed else 'is-fail' }}">
+        {{ t("take.passed") if passed else t("take.failed") }}
+    </p>
+    <p class="muted" style="margin:0">
+        {{ t("take.attempt_no", attempt_no) }}
+        {% if test %} · {{ t("take.required", test.pass_percent) }}{% endif %}
+    </p>
+</section>
+
+<div class="btn-row">
+    {% if test and status and not status.done %}
+        <a class="btn btn-info" href="/take/{{ test.id }}">{{ t("take.another") }}</a>
+    {% endif %}
+    <a class="btn btn-ghost" href="/take">{{ t("take.back") }}</a>
+</div>
+{% endblock %}

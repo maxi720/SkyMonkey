@@ -1,0 +1,144 @@
+{# Shared page frame. All assets are same-origin — see the CSP in main.py.
+
+   Two shells around one content block: signed-in users get the dashboard
+   layout (left sidebar + content column), everyone else the plain centred page
+   used by login, register and the legal pages, where a navigation rail would
+   be noise. The opening and closing chrome is split across the if/else because
+   Jinja allows `content` to be declared only once per template.
+
+   The appearance comes from data-theme on <html>, set server-side from a
+   cookie: no JavaScript, so nothing is blocked by the CSP and there is no
+   flash of the wrong theme on load. #}
+<!doctype html>
+<html lang="{{ lang }}"{% if theme == 'dark' %} data-theme="dark"{% endif %}>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}QuizMonkey{% endblock %}</title>
+    <link rel="stylesheet" href="/static/app.css?v={{ asset_v('app.css') }}">
+    <script src="/static/htmx.min.js" defer></script>
+    <script src="/static/app.js?v={{ asset_v('app.js') }}" defer></script>
+</head>
+
+{% if profile %}
+<body class="has-shell">
+<a class="skip-link" href="#main">{{ t("nav.skip") }}</a>
+
+<div class="shell">
+    <aside class="sidebar">
+        <a class="brand" href="/">QuizMonkey</a>
+
+        {% if profile.is_trainer %}
+            <div class="side-actions">
+                <a class="btn btn-block" href="/tests/new">{{ t("dash.new_test") }}</a>
+                <a class="btn btn-ghost btn-block" href="/quizzes/new">{{ t("dash.new_quiz") }}</a>
+            </div>
+        {% else %}
+            <div class="side-actions">
+                <a class="btn btn-block" href="/take">{{ t("dash.take_cta") }}</a>
+            </div>
+        {% endif %}
+
+        <nav class="side-nav" aria-label="{{ t('nav.dashboard') }}">
+            <a href="/"{% if page == 'dashboard' %} aria-current="page"{% endif %}>
+                {{ t("nav.dashboard") }}</a>
+
+            {% if profile.is_trainer %}
+                <span class="side-nav-label">{{ t("nav.section_manage") }}</span>
+                <a href="/groups"{% if page == 'groups' %} aria-current="page"{% endif %}>
+                    {{ t("nav.groups") }}</a>
+                <a href="/quizzes"{% if page == 'quizzes' %} aria-current="page"{% endif %}>
+                    {{ t("nav.quizzes") }}</a>
+                <a href="/tests"{% if page == 'tests' %} aria-current="page"{% endif %}>
+                    {{ t("nav.tests") }}</a>
+            {% else %}
+                <span class="side-nav-label">{{ t("nav.section_learn") }}</span>
+                <a href="/take"{% if page == 'take' %} aria-current="page"{% endif %}>
+                    {{ t("nav.take") }}</a>
+            {% endif %}
+        </nav>
+
+        <div class="sidebar-foot">
+            <div class="side-user">
+                <span class="side-user-name">{{ profile.display_name }}</span>
+                <span class="badge {% if profile.is_trainer %}badge-trainer{% endif %}">
+                    {{ t("role." ~ profile.role) }}</span>
+            </div>
+            <form method="post" action="/logout">
+                <button class="btn btn-ghost btn-block btn-small" type="submit">
+                    {{ t("nav.signout") }}</button>
+            </form>
+            <p class="side-legal">
+                <a href="/privacy">{{ t("footer.privacy") }}</a>
+                <a href="/imprint">{{ t("footer.imprint") }}</a>
+            </p>
+        </div>
+    </aside>
+
+    <div class="shell-main">
+        <header class="topbar">
+            <a class="icon-btn{% if page == 'settings' %} is-active{% endif %}"
+               href="/settings" aria-label="{{ t('nav.settings') }}"
+               title="{{ t('nav.settings') }}"
+               {% if page == 'settings' %}aria-current="page"{% endif %}>
+                {# Inline SVG: no icon font to download, nothing third-party. #}
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                     stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </a>
+        </header>
+
+        <main class="content" id="main">
+{% else %}
+<body>
+<a class="skip-link" href="#main">{{ t("nav.skip") }}</a>
+
+<header class="site-header">
+    <div class="inner">
+        <a class="brand" href="/">QuizMonkey</a>
+        <nav class="main-nav">
+            <a href="/login"{% if page == 'login' %} aria-current="page"{% endif %}>{{ t("nav.signin") }}</a>
+            <a href="/register"{% if page == 'register' %} aria-current="page"{% endif %}>{{ t("nav.register") }}</a>
+        </nav>
+    </div>
+</header>
+
+<main class="wrap" id="main">
+{% endif %}
+
+        {% if error %}<div class="msg msg-error" role="alert">{{ error }}</div>{% endif %}
+        {% if notice %}<div class="msg msg-notice" role="status">{{ notice }}</div>{% endif %}
+        {% block content %}{% endblock %}
+
+{% if profile %}
+        </main>
+    </div>
+</div>
+</body>
+{% else %}
+</main>
+
+<footer class="site-footer">
+    <div class="inner">
+        <span>QuizMonkey</span>
+        <a href="/privacy">{{ t("footer.privacy") }}</a>
+        <a href="/imprint">{{ t("footer.imprint") }}</a>
+
+        <form method="post" action="/language" class="lang-switch">
+            <input type="hidden" name="next" value="{{ request.url.path }}">
+            <span class="visually-hidden">{{ t("lang.label") }}:</span>
+            <button type="submit" name="lang" value="de"
+                    class="lang-btn{% if lang == 'de' %} is-active{% endif %}"
+                    {% if lang == 'de' %}aria-current="true"{% endif %}>DE</button>
+            <button type="submit" name="lang" value="en"
+                    class="lang-btn{% if lang == 'en' %} is-active{% endif %}"
+                    {% if lang == 'en' %}aria-current="true"{% endif %}>EN</button>
+        </form>
+    </div>
+</footer>
+</body>
+{% endif %}
+</html>

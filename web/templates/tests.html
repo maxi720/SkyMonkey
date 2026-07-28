@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% set page = "tests" %}
+{% block title %}{{ t("tests.title") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<h1>{{ t("tests.title") }}</h1>
+<p class="lead">{{ t("tests.lead") }}</p>
+
+<div class="btn-row" style="margin-bottom:1.25rem">
+    <a class="btn btn-success" href="/tests/new">+ {{ t("tests.new") }}</a>
+</div>
+
+<h2>{{ t("tests.yours") }}</h2>
+{% if tests %}
+    <div class="quiz-list">
+    {% for x in tests %}
+        <details class="quiz-item">
+            <summary>
+                <span class="quiz-item-name">{{ x.name }}</span>
+                <span class="quiz-item-actions" data-no-toggle>
+                    <a class="btn btn-ghost btn-small"
+                       href="/tests/{{ x.id }}/edit">{{ t("quizzes.edit") }}</a>
+                    <a class="btn btn-ghost btn-small"
+                       href="/tests/{{ x.id }}/results">{{ t("results.title") }}</a>
+                    <a class="btn btn-info btn-small"
+                       href="/tests/{{ x.id }}/release">{{ t("quiz.release") }}</a>
+                    <form method="post" action="/tests/{{ x.id }}/delete"
+                          data-confirm="{{ t('tests.delete_confirm') }}">
+                        <button class="btn btn-danger btn-small" type="submit">
+                            {{ t("quizzes.delete") }}
+                        </button>
+                    </form>
+                </span>
+            </summary>
+            <div class="quiz-item-body">
+                <ul class="facts">
+                    <li><span>{{ t("test.pass_percent") }}</span><strong>{{ x.pass_percent }} %</strong></li>
+                    <li><span>{{ t("test.questions") }}</span><strong>{{ x.question_count }}</strong></li>
+                    <li><span>{{ t("test.attempts") }}</span><strong>{{ x.max_attempts }}</strong></li>
+                    <li>
+                        <span>{{ t("test.time_limit") }}</span>
+                        <strong>{% if x.time_limit_min %}{{ x.time_limit_min }} {{ t("test.minutes") }}{% else %}{{ t("test.no_limit") }}{% endif %}</strong>
+                    </li>
+                </ul>
+
+                <h3>{{ t("quiz.notes") }}</h3>
+                {% if x.notes %}
+                    <p style="white-space:pre-wrap">{{ x.notes }}</p>
+                {% else %}
+                    <p class="muted">{{ t("quiz.note_empty") }}</p>
+                {% endif %}
+
+                <h3>{{ t("quiz.released_to") }}</h3>
+                {% if x.groups %}
+                    <ul class="tag-list">
+                        {% for g in x.groups %}<li>{{ g }}</li>{% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="muted">{{ t("quiz.released_none") }}</p>
+                {% endif %}
+
+                <p class="muted small-note">
+                    {{ t("quiz.created") }}: {{ x.created or "—" }}
+                    &nbsp;·&nbsp;
+                    {{ t("quiz.updated") }}: {{ x.updated or "—" }}
+                </p>
+            </div>
+        </details>
+    {% endfor %}
+    </div>
+{% else %}
+    <div class="card">
+        <p class="muted" style="margin:0">{{ t("tests.none") }}</p>
+    </div>
+{% endif %}
+{% endblock %}

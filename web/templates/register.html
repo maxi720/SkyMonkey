@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% set page = "register" %}
+{% block title %}{{ t("register.title") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<h1>{{ t("register.title") }}</h1>
+<p class="lead">{{ t("register.lead") }}</p>
+
+{% if not configured %}
+    <div class="msg msg-warn">{{ t("login.not_configured") | safe }}</div>
+{% endif %}
+
+<form class="card form-narrow" method="post" action="/register">
+    <label for="first_name">{{ t("register.first_name") }}</label>
+    <input id="first_name" name="first_name" type="text"
+           autocomplete="given-name" required>
+
+    <label for="last_name">{{ t("register.last_name") }}</label>
+    <input id="last_name" name="last_name" type="text"
+           autocomplete="family-name" required>
+
+    <label for="email">{{ t("login.email") }}</label>
+    <input id="email" name="email" type="email" autocomplete="email" required>
+
+    <label for="password">{{ t("login.password") }}</label>
+    <input id="password" name="password" type="password"
+           autocomplete="new-password" minlength="6" required>
+
+    <div class="check">
+        <input id="privacy" name="privacy" type="checkbox" value="yes" required>
+        <label for="privacy">
+            {{ t("register.privacy_consent",
+                 '<a href="/privacy" target="_blank">' ~ t("register.privacy_link") ~ "</a>") | safe }}
+        </label>
+    </div>
+
+    <button class="btn btn-success btn-block" type="submit"
+            {% if not configured %}disabled{% endif %}>{{ t("register.submit") }}</button>
+</form>
+
+<p>{{ t("register.have_account") }} <a href="/login">{{ t("login.submit") }}</a>.</p>
+{% endblock %}

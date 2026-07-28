@@ -1,0 +1,29 @@
+{# One question block. Rendered inside the editor and also served on its own
+   to htmx when the user adds a question. `index` must be unique per block —
+   the POST handler groups the fields by it. #}
+<fieldset class="qblock" id="q-{{ index }}">
+    <legend>{{ t("quiz.question") }}</legend>
+
+    <label for="q-{{ index }}-text">{{ t("quiz.question_text") }}</label>
+    <input id="q-{{ index }}-text" name="q-{{ index }}-text" type="text"
+           value="{{ question.text if question else '' }}" required>
+
+    <p class="muted small-note">{{ t("quiz.answers_hint") }}</p>
+
+    {% for n in range(1, 5) %}
+        {% set existing = question.answers[n - 1] if question and question.answers|length >= n else '' %}
+        <div class="answer-row">
+            <input type="checkbox" name="q-{{ index }}-correct" value="{{ n }}"
+                   id="q-{{ index }}-c{{ n }}"
+                   aria-label="{{ t('quiz.answer_correct', n) }}"
+                   {% if question and existing and existing in question.correct %}checked{% endif %}>
+            <input type="text" name="q-{{ index }}-a{{ n }}"
+                   placeholder="{{ t('quiz.answer') }} {{ n }}{% if n > 2 %} ({{ t('quiz.optional') }}){% endif %}"
+                   value="{{ existing }}">
+        </div>
+    {% endfor %}
+
+    <button type="button" class="btn btn-ghost btn-small"
+            data-remove-question
+            data-remove-confirm="{{ t('quiz.remove_confirm') }}">{{ t("quiz.remove_question") }}</button>
+</fieldset>

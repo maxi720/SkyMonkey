@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% set page = "quizzes" %}
+{% block title %}{{ t("quiz.edit_title") if quiz and quiz.id else t("quiz.new_title") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<h1>{{ t("quiz.edit_title") if quiz and quiz.id else t("quiz.new_title") }}</h1>
+<p class="lead">{{ t("quiz.lead") }}</p>
+
+<form method="post" action="/quizzes">
+    {% if quiz and quiz.id %}
+        <input type="hidden" name="quiz_id" value="{{ quiz.id }}">
+    {% endif %}
+
+    <div class="card form-narrow">
+        <label for="name">{{ t("quiz.name") }}</label>
+        <input id="name" name="name" type="text"
+               value="{{ quiz.name if quiz else '' }}" required>
+
+        <label for="notes">{{ t("quiz.notes") }}</label>
+        <textarea id="notes" name="notes" rows="3"
+                  placeholder="{{ t('quiz.notes_placeholder') }}">{{ quiz.notes if quiz and quiz.notes else '' }}</textarea>
+        <p class="muted small-note">{{ t("quiz.notes_hint") }}</p>
+    </div>
+
+    <div class="qsearch" data-quiz-search>
+        <label for="quiz-search" class="visually-hidden">{{ t("quiz.search") }}</label>
+        <input id="quiz-search" type="search" autocomplete="off"
+               placeholder="{{ t('quiz.search_placeholder') }}"
+               data-quiz-search-input>
+        <p class="muted small-note" data-quiz-search-empty hidden>
+            {{ t("quiz.search_none") }}
+        </p>
+    </div>
+
+    <div id="questions" data-quiz-questions>
+        {% for question in questions %}
+            {% set index = loop.index0 %}
+            {% include "_question_row.html" %}
+        {% else %}
+            {% set index = 0 %}
+            {% set question = None %}
+            {% include "_question_row.html" %}
+        {% endfor %}
+    </div>
+
+    {# htmx appends a fresh block; a timestamp keeps field names unique. #}
+    <div class="btn-row" style="margin-bottom:1rem">
+        <button type="button" class="btn btn-ghost"
+                hx-get="/quiz-question-row"
+                hx-target="#questions"
+                hx-swap="beforeend"
+                hx-vals='js:{index: Date.now()}'>
+            {{ t("quiz.add_question") }}
+        </button>
+        <button class="btn btn-success" type="submit">{{ t("quiz.save") }}</button>
+    </div>
+</form>
+
+{% if quiz and quiz.id %}
+    <section class="card">
+        <h2 style="margin-top:0">{{ t("quiz.release_title") }}</h2>
+        <p class="muted">{{ t("quiz.release_hint") }}</p>
+        <a class="btn btn-info" href="/quizzes/{{ quiz.id }}/release">
+            {{ t("quiz.release_manage") }}
+        </a>
+    </section>
+
+    <section class="card">
+        <h2 style="margin-top:0">{{ t("quiz.export_title") }}</h2>
+        <p class="muted">{{ t("quiz.export_text") | safe }}</p>
+        <a class="btn btn-ghost" href="/quizzes/{{ quiz.id }}/export">
+            {{ t("quiz.download") }}
+        </a>
+    </section>
+{% endif %}
+
+<p><a href="/quizzes">{{ t("quiz.back") }}</a></p>
+
+<script src="/static/quiz_edit.js" defer></script>
+{% endblock %}

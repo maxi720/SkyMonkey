@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% set page = "groups" %}
+{% block title %}{{ group.name }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<p class="muted"><a href="/groups">&larr; All groups</a></p>
+<h1>{{ group.name }}</h1>
+
+<section class="card form-narrow">
+    <h2 style="margin-top:0">Invite a trainee</h2>
+    <form method="post" action="/groups/{{ group.id }}/invite">
+        <label for="email">Trainee e-mail</label>
+        <input id="email" name="email" type="email" autocomplete="off" required
+               placeholder="name@example.com">
+        <button class="btn btn-success" type="submit">Send invitation</button>
+    </form>
+    <p class="muted" style="margin-bottom:0">
+        The trainee sees the invitation in the mobile app and accepts it there.
+        You can invite someone before they have an account — it links up when
+        they sign up with that e-mail.
+    </p>
+</section>
+
+<section class="card">
+    <h2 style="margin-top:0">Released quizzes</h2>
+    {% if shared_quizzes %}
+        <p class="muted">These quizzes are available to this group in the mobile app.</p>
+        <ul class="plain-list">
+            {% for q in shared_quizzes %}
+                <li>
+                    <span>{{ q.name }}</span>
+                    <a class="btn btn-ghost btn-small"
+                       href="/quizzes/{{ q.id }}/release">Manage</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="muted" style="margin:0">
+            No quizzes released to this group yet. Open a quiz and release it
+            from <a href="/quizzes">Quizzes</a>.
+        </p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2 style="margin-top:0">Members</h2>
+    {% if members %}
+        <div class="table-scroll">
+        <table>
+            <thead>
+                <tr><th>Name</th><th>E-mail</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for m in members %}
+                    <tr>
+                        <td>{{ m.name or '—' }}</td>
+                        <td>{{ m.email }}</td>
+                        <td>
+                            {% if m.status == 'accepted' %}
+                                <span class="badge badge-pass">accepted</span>
+                            {% else %}
+                                <span class="badge">invited</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="post"
+                                  action="/groups/{{ group.id }}/members/{{ m.id }}/remove"
+                                  data-confirm="Remove this person from the group?">
+                                <button class="btn btn-danger" type="submit">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    {% else %}
+        <p class="muted" style="margin:0">
+            No members yet. Invite someone above.
+        </p>
+    {% endif %}
+</section>
+{% endblock %}

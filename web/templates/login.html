@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set page = "login" %}
+{% block title %}{{ t("login.title") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<h1>{{ t("login.title") }}</h1>
+<p class="lead">{{ t("login.lead") }}</p>
+
+{% if not configured %}
+    <div class="msg msg-warn">{{ t("login.not_configured") | safe }}</div>
+{% endif %}
+
+<form class="card form-narrow" method="post" action="/login">
+    <label for="email">{{ t("login.email") }}</label>
+    <input id="email" name="email" type="email" autocomplete="email" required>
+
+    <label for="password">{{ t("login.password") }}</label>
+    <input id="password" name="password" type="password"
+           autocomplete="current-password" required>
+
+    <button class="btn btn-success btn-block" type="submit"
+            {% if not configured %}disabled{% endif %}>{{ t("login.submit") }}</button>
+</form>
+
+<p>{{ t("login.no_account") }} <a href="/register">{{ t("login.create_one") }}</a>.</p>
+<p class="muted">{{ t("login.mobile_hint") }}</p>
+{% endblock %}

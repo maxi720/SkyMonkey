@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% set page = "take" %}
+{% block title %}{{ t("take.title") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<h1>{{ t("take.title") }}</h1>
+<p class="lead">{{ t("take.lead") }}</p>
+
+{% if not configured %}
+    <div class="msg msg-error" role="alert">{{ t("err.tests_not_configured") }}</div>
+{% endif %}
+
+{% if tests %}
+    {% for x in tests %}
+        <section class="card">
+            <div class="row-between">
+                <div>
+                    <h3 style="margin:0 0 .3rem">{{ x.name }}</h3>
+                    <p class="muted small-note" style="margin:0">
+                        {{ t("test.pass_percent") }}: {{ x.pass_percent }} %
+                        · {{ t("test.questions") }}: {{ x.question_count }}
+                        {% if x.time_limit_min %}· {{ x.time_limit_min }} {{ t("test.minutes") }}{% endif %}
+                    </p>
+                    {% if x.status %}
+                        <p style="margin:.5rem 0 0">
+                        {% if x.status.passed %}
+                            <span class="badge badge-pass">{{ t("take.passed") }}</span>
+                        {% elif x.status.locked %}
+                            <span class="badge badge-fail">{{ t("take.locked") }}</span>
+                        {% elif x.status.in_progress %}
+                            <span class="badge">{{ t("take.in_progress") }}</span>
+                        {% elif x.status.used %}
+                            <span class="badge">{{ t("take.attempts_used", x.status.used, x.max_attempts) }}</span>
+                        {% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+                <a class="btn btn-info" href="/take/{{ x.id }}">{{ t("take.open") }}</a>
+            </div>
+        </section>
+    {% endfor %}
+{% else %}
+    <div class="card">
+        <p class="muted" style="margin:0">{{ t("take.none") }}</p>
+    </div>
+{% endif %}
+{% endblock %}

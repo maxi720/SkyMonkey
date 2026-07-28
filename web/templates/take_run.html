@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% set page = "take" %}
+{% block title %}{{ test.name if test else t("take.title") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<div class="row-between" style="align-items:baseline">
+    <h1 style="margin:0">{{ test.name if test else t("take.title") }}</h1>
+    {% if remaining is not none %}
+        <div class="timer">
+            {{ t("take.time_left") }}:
+            <strong data-countdown="{{ remaining }}" data-countdown-form="test-form">--:--</strong>
+        </div>
+    {% endif %}
+</div>
+<p class="muted small-note">{{ t("take.no_feedback_hint") }}</p>
+
+<form method="post" action="/take/attempt/{{ attempt.id }}/submit" id="test-form"
+      data-confirm="{{ t('take.submit_confirm') }}">
+    {% for q in attempt.questions %}
+        {% set qi = loop.index0 %}
+        <fieldset class="qblock">
+            <legend class="qprompt">{{ loop.index }}. {{ q.prompt }}</legend>
+            {% for opt in q.options %}
+                <div class="answer-row answer-opt">
+                    <input type="{{ 'checkbox' if q.multi else 'radio' }}"
+                           name="a-{{ qi }}" value="{{ opt }}"
+                           id="a-{{ qi }}-{{ loop.index }}">
+                    <label for="a-{{ qi }}-{{ loop.index }}">{{ opt }}</label>
+                </div>
+            {% endfor %}
+            {% if q.multi %}
+                <p class="muted small-note">{{ t("take.multi_hint") }}</p>
+            {% endif %}
+        </fieldset>
+    {% endfor %}
+
+    <div class="btn-row">
+        <button class="btn btn-success" type="submit">{{ t("take.submit") }}</button>
+    </div>
+</form>
+{% endblock %}

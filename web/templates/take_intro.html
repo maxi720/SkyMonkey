@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set page = "take" %}
+{% block title %}{{ test.name }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<p class="muted"><a href="/take">&larr; {{ t("take.back") }}</a></p>
+<h1>{{ test.name }}</h1>
+
+<section class="card">
+    <ul class="facts">
+        <li><span>{{ t("test.pass_percent") }}</span><strong>{{ test.pass_percent }} %</strong></li>
+        <li><span>{{ t("test.questions") }}</span><strong>{{ test.question_count }}</strong></li>
+        <li>
+            <span>{{ t("test.time_limit") }}</span>
+            <strong>{% if test.time_limit_min %}{{ test.time_limit_min }} {{ t("test.minutes") }}{% else %}{{ t("test.no_limit") }}{% endif %}</strong>
+        </li>
+        {% if status %}
+            <li><span>{{ t("take.attempts_left_label") }}</span><strong>{{ status.attempts_left }} / {{ test.max_attempts }}</strong></li>
+        {% endif %}
+    </ul>
+
+    {% if not configured %}
+        <div class="msg msg-error" role="alert">{{ t("err.tests_not_configured") }}</div>
+    {% elif status and status.passed %}
+        <p class="result-verdict is-pass">{{ t("take.you_passed", status.passed_attempt) }}</p>
+        {% if status.best is not none %}<p class="muted">{{ t("take.best", status.best) }}</p>{% endif %}
+    {% elif status and status.locked %}
+        <p class="result-verdict is-fail">{{ t("take.you_locked") }}</p>
+        {% if status.best is not none %}<p class="muted">{{ t("take.best", status.best) }}</p>{% endif %}
+    {% else %}
+        <p>{{ t("take.required", test.pass_percent) }}</p>
+        <p class="muted small-note">{{ t("take.rules_hint") }}</p>
+        {% if status and status.in_progress %}
+            <a class="btn btn-success" href="/take/attempt/{{ status.in_progress.id }}">{{ t("take.resume") }}</a>
+        {% else %}
+            <form method="post" action="/take/{{ test.id }}/start"
+                  data-confirm="{{ t('take.start_confirm') }}">
+                <button class="btn btn-success" type="submit">{{ t("take.start") }}</button>
+            </form>
+        {% endif %}
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% set page = "tests" %}
+{% block title %}{{ t("test.edit_title") if editing else t("test.new_title") }} — QuizMonkey{% endblock %}
+
+{% macro val(key, default='') -%}
+{{ form[key] if form and form.get(key) is not none else default }}
+{%- endmacro %}
+
+{% block content %}
+<h1>{{ t("test.edit_title") if editing else t("test.new_title") }}</h1>
+<p class="lead">{{ t("test.lead") }}</p>
+
+{% if not quizzes %}
+    <div class="card">
+        <p class="muted" style="margin:0">
+            {{ t("test.no_quizzes", '<a href="/quizzes">' ~ t("nav.quizzes") ~ "</a>") | safe }}
+        </p>
+    </div>
+{% else %}
+<form method="post" action="/tests">
+    {% if editing %}<input type="hidden" name="test_id" value="{{ val('test_id') }}">{% endif %}
+    <div class="card form-narrow">
+        <label for="name">{{ t("test.name") }}</label>
+        <input id="name" name="name" type="text" required value="{{ val('name') }}">
+
+        <label for="pass_percent">{{ t("test.pass_percent") }}</label>
+        <input id="pass_percent" name="pass_percent" type="number" min="0" max="100"
+               required value="{{ val('pass_percent', '60') }}">
+
+        <label for="max_attempts">{{ t("test.attempts") }}</label>
+        <input id="max_attempts" name="max_attempts" type="number" min="1"
+               required value="{{ val('max_attempts', '1') }}">
+
+        <label for="time_limit_min">{{ t("test.time_limit_min") }}</label>
+        <input id="time_limit_min" name="time_limit_min" type="number" min="1"
+               placeholder="{{ t('test.no_limit') }}" value="{{ val('time_limit_min') }}">
+        <p class="muted small-note">{{ t("test.time_limit_hint") }}</p>
+
+        <label for="notes">{{ t("quiz.notes") }}</label>
+        <textarea id="notes" name="notes" rows="3"
+                  placeholder="{{ t('quiz.notes_placeholder') }}">{{ val('notes') }}</textarea>
+        <p class="muted small-note">{{ t("quiz.notes_hint") }}</p>
+    </div>
+
+    <div class="card form-narrow">
+        <p class="field-label">{{ t("test.mode") }}</p>
+        <div class="check">
+            <input type="radio" id="mode_random" name="selection_mode" value="random"
+                   {% if not form or form.get('selection_mode', 'random') == 'random' %}checked{% endif %}>
+            <label for="mode_random">{{ t("test.mode_random") }}</label>
+        </div>
+        <div class="check">
+            <input type="radio" id="mode_manual" name="selection_mode" value="manual"
+                   {% if form and form.get('selection_mode') == 'manual' %}checked{% endif %}>
+            <label for="mode_manual">{{ t("test.mode_manual") }}</label>
+        </div>
+    </div>
+
+    {# ---------- random ---------- #}
+    <section class="card" data-mode="random">
+        <h2 style="margin-top:0">{{ t("test.sources_title") }}</h2>
+        <p class="muted">{{ t("test.sources_hint") }}</p>
+
+        <label for="question_count">{{ t("test.question_count") }}</label>
+        <input id="question_count" name="question_count" type="number" min="1"
+               value="{{ val('question_count') }}" style="max-width:8rem">
+
+        <table class="src-table">
+            <thead>
+                <tr><th>{{ t("quizzes.name") }}</th><th>{{ t("quizzes.questions") }}</th><th>{{ t("test.weight") }}</th></tr>
+            </thead>
+            <tbody>
+            {% for q in quizzes %}
+                <tr>
+                    <td>{{ q.name }}</td>
+                    <td>{{ q.count }}</td>
+                    <td>
+                        <input type="number" min="0" max="100"
+                               name="weight-{{ q.id }}"
+                               value="{{ val('weight-' ~ q.id, '0') }}"
+                               aria-label="{{ t('test.weight') }} — {{ q.name }}">
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <p class="muted small-note">{{ t("test.weight_hint") }}</p>
+    </section>
+
+    <section class="card" data-mode="random">
+        <h2 style="margin-top:0">{{ t("test.random_title") }}</h2>
+
+        <p class="field-label">{{ t("test.draw_scope") }}</p>
+        <div class="check">
+            <input type="radio" id="scope_pt" name="draw_scope" value="per_trainee"
+                   {% if not form or form.get('draw_scope', 'per_trainee') == 'per_trainee' %}checked{% endif %}>
+            <label for="scope_pt">{{ t("test.scope_per_trainee") }}</label>
+        </div>
+        <div class="check">
+            <input type="radio" id="scope_fixed" name="draw_scope" value="fixed"
+                   {% if form and form.get('draw_scope') == 'fixed' %}checked{% endif %}>
+            <label for="scope_fixed">{{ t("test.scope_fixed") }}</label>
+        </div>
+
+        <p class="field-label">{{ t("test.retry_mode") }}</p>
+        <div class="check">
+            <input type="radio" id="retry_new" name="retry_mode" value="new"
+                   {% if not form or form.get('retry_mode', 'new') == 'new' %}checked{% endif %}>
+            <label for="retry_new">{{ t("test.retry_new") }}</label>
+        </div>
+        <div class="check">
+            <input type="radio" id="retry_same" name="retry_mode" value="same"
+                   {% if form and form.get('retry_mode') == 'same' %}checked{% endif %}>
+            <label for="retry_same">{{ t("test.retry_same") }}</label>
+        </div>
+        <p class="muted small-note">{{ t("test.retry_hint") }}</p>
+    </section>
+
+    {# ---------- manual ---------- #}
+    <section class="card" data-mode="manual" hidden>
+        <h2 style="margin-top:0">{{ t("test.manual_title") }}</h2>
+        <p class="muted">{{ t("test.manual_hint") }}</p>
+        {% for q in quizzes_full %}
+            <details class="quiz-item">
+                <summary>
+                    <span class="quiz-item-name">{{ q.name }}</span>
+                    <span class="quiz-item-count">{{ q.questions | length }}</span>
+                </summary>
+                <div class="quiz-item-body">
+                    {% if q.questions %}
+                        {% for item in q.questions %}
+                            <div class="check">
+                                <input type="checkbox" name="pick"
+                                       id="pick-{{ q.id }}-{{ item.index }}"
+                                       value="{{ q.id }}:{{ item.index }}"
+                                       {% if (q.id ~ ':' ~ item.index) in picked %}checked{% endif %}>
+                                <label for="pick-{{ q.id }}-{{ item.index }}">{{ item.text }}</label>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="muted">{{ t("test.manual_empty") }}</p>
+                    {% endif %}
+                </div>
+            </details>
+        {% endfor %}
+    </section>
+
+    <div class="btn-row">
+        <button class="btn btn-success" type="submit">{{ t("test.save") if editing else t("test.create") }}</button>
+        <a class="btn btn-ghost" href="/tests">{{ t("test.cancel") }}</a>
+    </div>
+</form>
+{% endif %}
+{% endblock %}

@@ -31,15 +31,15 @@ create index if not exists courses_owner_idx on public.courses (owner_id);
 
 -- Which groups have access to a course.
 create table if not exists public.course_groups (
-    course_id   uuid not null references public.courses  (id) on delete cascade,
-    group_id    uuid not null references public.groups   (id) on delete cascade,
+    course_id   uuid not null references public.courses (id) on delete cascade,
+    group_id    uuid not null references public.groups  (id) on delete cascade,
     primary key (course_id, group_id)
 );
 
 -- Files attached to a course.
 create table if not exists public.course_files (
     id           uuid        primary key default gen_random_uuid(),
-    course_id    uuid        not null references public.courses (id) on delete cascade,
+    course_id    uuid        not null references public.courses  (id) on delete cascade,
     owner_id     uuid        not null references public.profiles (id) on delete cascade,
     name         text        not null,
     filename     text,
@@ -55,13 +55,12 @@ create index if not exists course_files_course_idx on public.course_files (cours
 -- 2. Enable RLS
 -- ---------------------------------------------------------------------------
 
-alter table public.courses      enable row level security;
+alter table public.courses       enable row level security;
 alter table public.course_groups enable row level security;
 alter table public.course_files  enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- 3. Grant table-level privileges to the authenticated role
---    (Supabase requires an explicit GRANT in addition to RLS policies)
 -- ---------------------------------------------------------------------------
 
 grant select, insert, update, delete on public.courses       to authenticated;
@@ -72,15 +71,18 @@ grant select, insert, update, delete on public.course_files  to authenticated;
 -- 4. RLS policies — courses
 -- ---------------------------------------------------------------------------
 
+drop policy if exists "trainer owns course"          on public.courses;
+drop policy if exists "trainee reads assigned course" on public.courses;
+
 -- Trainer: full access to own courses.
-create policy if not exists "trainer owns course"
+create policy "trainer owns course"
     on public.courses
     for all
     using  (owner_id = auth.uid())
     with check (owner_id = auth.uid());
 
 -- Trainee: can SELECT courses they have access to through a group membership.
-create policy if not exists "trainee reads assigned course"
+create policy "trainee reads assigned course"
     on public.courses
     for select
     using (
@@ -98,8 +100,11 @@ create policy if not exists "trainee reads assigned course"
 -- 5. RLS policies — course_groups
 -- ---------------------------------------------------------------------------
 
+drop policy if exists "trainer manages course groups" on public.course_groups;
+drop policy if exists "trainee reads course groups"   on public.course_groups;
+
 -- Trainer: manage group assignments on own courses.
-create policy if not exists "trainer manages course groups"
+create policy "trainer manages course groups"
     on public.course_groups
     for all
     using (
@@ -117,9 +122,8 @@ create policy if not exists "trainer manages course groups"
         )
     );
 
--- Trainee: read course_groups for courses they can see (so they know which
--- groups are assigned, shown on the course detail page).
-create policy if not exists "trainee reads course groups"
+-- Trainee: read course_groups for courses they can see.
+create policy "trainee reads course groups"
     on public.course_groups
     for select
     using (
@@ -136,15 +140,18 @@ create policy if not exists "trainee reads course groups"
 -- 6. RLS policies — course_files
 -- ---------------------------------------------------------------------------
 
+drop policy if exists "trainer manages course files" on public.course_files;
+drop policy if exists "trainee reads course files"   on public.course_files;
+
 -- Trainer: full access to files on own courses.
-create policy if not exists "trainer manages course files"
+create policy "trainer manages course files"
     on public.course_files
     for all
     using  (owner_id = auth.uid())
     with check (owner_id = auth.uid());
 
 -- Trainee: read files on courses they are assigned to.
-create policy if not exists "trainee reads course files"
+create policy "trainee reads course files"
     on public.course_files
     for select
     using (

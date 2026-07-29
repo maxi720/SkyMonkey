@@ -78,4 +78,119 @@
             }
         }, 1000);
     }
+
+    // ---------- topbar dropdown ----------
+    // Uses a data-topbar-trigger attribute to avoid inline onclick (CSP).
+    document.addEventListener("click", function (event) {
+        var trigger = event.target.closest("[data-topbar-trigger]");
+        if (!trigger) { return; }
+        var dropdown = document.getElementById("topbarDropdown");
+        if (!dropdown) { return; }
+        var isOpen = !dropdown.hidden;
+        dropdown.hidden = isOpen;
+        trigger.setAttribute("aria-expanded", String(!isOpen));
+        event.stopPropagation();
+    });
+
+    // Close the dropdown when clicking outside of it.
+    document.addEventListener("click", function (event) {
+        var menu = document.querySelector(".topbar-menu");
+        if (!menu) { return; }
+        var dropdown = document.getElementById("topbarDropdown");
+        if (!dropdown || dropdown.hidden) { return; }
+        if (!menu.contains(event.target)) {
+            dropdown.hidden = true;
+            var trigger = menu.querySelector(".topbar-menu-trigger");
+            if (trigger) { trigger.setAttribute("aria-expanded", "false"); }
+        }
+    });
+
+    // Close on Escape.
+    document.addEventListener("keydown", function (event) {
+        if (event.key !== "Escape") { return; }
+        var dropdown = document.getElementById("topbarDropdown");
+        if (!dropdown || dropdown.hidden) { return; }
+        dropdown.hidden = true;
+        var trigger = document.querySelector(".topbar-menu-trigger");
+        if (trigger) {
+            trigger.setAttribute("aria-expanded", "false");
+            trigger.focus();
+        }
+    });
+
+    // ---------- group list drag-and-drop ----------
+    var groupList = document.getElementById("groupList");
+    if (groupList) {
+        var dragSrc = null;
+
+        function getDragItems() {
+            return Array.from(groupList.querySelectorAll(".group-item[draggable]"));
+        }
+
+        groupList.addEventListener("dragstart", function (event) {
+            var item = event.target.closest(".group-item[draggable]");
+            if (!item) { return; }
+            dragSrc = item;
+            item.classList.add("is-dragging");
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", item.getAttribute("data-id") || "");
+        });
+
+        groupList.addEventListener("dragend", function () {
+            getDragItems().forEach(function (el) {
+                el.classList.remove("is-dragging", "is-drop-target");
+            });
+            dragSrc = null;
+        });
+
+        groupList.addEventListener("dragover", function (event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            var target = event.target.closest(".group-item[draggable]");
+            getDragItems().forEach(function (el) {
+                el.classList.toggle("is-drop-target", el === target && el !== dragSrc);
+            });
+        });
+
+        groupList.addEventListener("dragleave", function (event) {
+            var target = event.target.closest(".group-item[draggable]");
+            if (!target) {
+                getDragItems().forEach(function (el) {
+                    el.classList.remove("is-drop-target");
+                });
+            }
+        });
+
+        groupList.addEventListener("drop", function (event) {
+            event.preventDefault();
+            var target = event.target.closest(".group-item[draggable]");
+            if (!target || !dragSrc || target === dragSrc) { return; }
+
+            // Insert dragSrc before or after target.
+            var items = getDragItems();
+            var srcIdx = items.indexOf(dragSrc);
+            var tgtIdx = items.indexOf(target);
+            if (srcIdx < tgtIdx) {
+                groupList.insertBefore(dragSrc, target.nextSibling);
+            } else {
+                groupList.insertBefore(dragSrc, target);
+            }
+
+            // Persist new order to the server.
+            var reorderUrl = groupList.getAttribute("data-reorder-url");
+            if (reorderUrl) {
+                var order = getDragItems().map(function (el) {
+                    return el.getAttribute("data-id");
+                });
+                fetch(reorderUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ order: order }),
+                }).catch(function () {
+                    // Reorder is best-effort; a failed save doesn't break the UI.
+                });
+            }
+        });
+    }
 })();
+

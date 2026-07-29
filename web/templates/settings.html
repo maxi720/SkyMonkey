@@ -5,18 +5,76 @@
 {% block content %}
 <h1>{{ t("settings.title") }}</h1>
 
+{# --- Account: name + email edit --- #}
 <section class="card form-narrow">
     <h2 style="margin-top:0">{{ t("settings.account") }}</h2>
-    <dl class="prose" style="margin:0">
-        <dt>{{ t("settings.name") }}</dt><dd>{{ profile.display_name }}</dd>
-        <dt>{{ t("settings.email") }}</dt><dd>{{ profile.email }}</dd>
-        <dt>{{ t("settings.role") }}</dt>
-        <dd>
-            <span class="badge {% if profile.is_trainer %}badge-trainer{% endif %}">
-                {{ t("role." ~ profile.role) }}
-            </span>
-        </dd>
-    </dl>
+    <form method="post" action="/settings/profile">
+        <label for="first_name">{{ t("register.first_name") }}</label>
+        <input id="first_name" name="first_name" type="text" maxlength="80"
+               value="{{ profile.first_name or '' }}" required>
+        <label for="last_name">{{ t("register.last_name") }}</label>
+        <input id="last_name" name="last_name" type="text" maxlength="80"
+               value="{{ profile.last_name or '' }}">
+        <label for="email_display">{{ t("settings.email") }}</label>
+        <input id="email_display" type="email" value="{{ profile.email }}" disabled>
+        <p class="muted" style="font-size:13px;margin-top:-8px">{{ t("settings.email_note") }}</p>
+        <dl class="prose" style="margin:0 0 16px">
+            <dt>{{ t("settings.role") }}</dt>
+            <dd>
+                <span class="badge {% if profile.is_trainer %}badge-trainer{% endif %}">
+                    {{ t("role." ~ profile.role) }}
+                </span>
+            </dd>
+        </dl>
+        <button class="btn btn-success" type="submit">{{ t("settings.save_profile") }}</button>
+    </form>
+</section>
+
+{# --- Dashboard customization --- #}
+<section class="card form-narrow">
+    <h2 style="margin-top:0">{{ t("settings.dashboard") }}</h2>
+    <p class="muted">{{ t("settings.dashboard_text") }}</p>
+    <form method="post" action="/settings/dashboard-async">
+        {% if profile.is_trainer %}
+            <div class="check">
+                <input type="checkbox" id="dash_stats" name="dash_stats" value="1"
+                       {% if dash_prefs.get('stats', True) %}checked{% endif %}>
+                <label for="dash_stats">{{ t("settings.dash_stats") }}</label>
+            </div>
+            <div class="check">
+                <input type="checkbox" id="dash_tests" name="dash_tests" value="1"
+                       {% if dash_prefs.get('tests', True) %}checked{% endif %}>
+                <label for="dash_tests">{{ t("settings.dash_tests") }}</label>
+            </div>
+            <div class="check">
+                <input type="checkbox" id="dash_quizzes" name="dash_quizzes" value="1"
+                       {% if dash_prefs.get('quizzes', True) %}checked{% endif %}>
+                <label for="dash_quizzes">{{ t("settings.dash_quizzes") }}</label>
+            </div>
+            <div class="check">
+                <input type="checkbox" id="dash_groups" name="dash_groups" value="1"
+                       {% if dash_prefs.get('groups', True) %}checked{% endif %}>
+                <label for="dash_groups">{{ t("settings.dash_groups") }}</label>
+            </div>
+            <div class="check">
+                <input type="checkbox" id="dash_notifications" name="dash_notifications" value="1"
+                       {% if dash_prefs.get('notifications', True) %}checked{% endif %}>
+                <label for="dash_notifications">{{ t("settings.dash_notifications") }}</label>
+            </div>
+        {% else %}
+            <div class="check">
+                <input type="checkbox" id="dash_stats" name="dash_stats" value="1"
+                       {% if dash_prefs.get('stats', True) %}checked{% endif %}>
+                <label for="dash_stats">{{ t("settings.dash_stats") }}</label>
+            </div>
+            <div class="check">
+                <input type="checkbox" id="dash_tests" name="dash_tests" value="1"
+                       {% if dash_prefs.get('tests', True) %}checked{% endif %}>
+                <label for="dash_tests">{{ t("settings.dash_tests") }}</label>
+            </div>
+        {% endif %}
+        <button class="btn btn-ghost" type="submit">{{ t("settings.save_dashboard") }}</button>
+    </form>
 </section>
 
 <section class="card form-narrow">
@@ -65,7 +123,30 @@
 <section class="card form-narrow">
     <h2 style="margin-top:0">{{ t("settings.your_data") }}</h2>
     <p class="muted">
-        {{ t("settings.rights", '<a href="/imprint">' ~ t("footer.imprint") ~ "</a>") | safe }}
+        {{ t("settings.rights_short") }}
     </p>
+</section>
+
+{# --- Account deletion --- #}
+<section class="card form-narrow" style="border-color: var(--danger-soft-bd);">
+    <h2 style="margin-top:0;color:var(--danger)">{{ t("settings.delete_account") }}</h2>
+    <p class="muted">{{ t("settings.delete_account_text") }}</p>
+    <details class="delete-confirm-block">
+        <summary class="btn btn-ghost" style="cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:8px;">
+            {{ t("settings.delete_account_show") }}
+        </summary>
+        <div style="margin-top:16px">
+            <form method="post" action="/settings/delete-account">
+                <p class="muted" style="font-size:13px">{{ t("settings.delete_confirm_hint", profile.email) }}</p>
+                <label for="delete_confirm">{{ t("settings.delete_type_email") }}</label>
+                <input id="delete_confirm" name="confirm_email" type="email"
+                       placeholder="{{ profile.email }}" autocomplete="off" required>
+                <button class="btn btn-danger" type="submit"
+                        onclick="return confirm('{{ t('settings.delete_final_confirm') }}')">
+                    {{ t("settings.delete_account_btn") }}
+                </button>
+            </form>
+        </div>
+    </details>
 </section>
 {% endblock %}

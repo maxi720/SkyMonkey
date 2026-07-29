@@ -31,6 +31,7 @@ TEXTS: dict[str, dict[str, str]] = {
     "nav.section_manage": {"de": "Verwalten", "en": "Manage"},
     "nav.section_learn": {"de": "Lernen", "en": "Learn"},
     "nav.section_account": {"de": "Konto", "en": "Account"},
+    "nav.courses": {"de": "Kurse", "en": "Courses"},
     "footer.privacy": {"de": "Datenschutz", "en": "Privacy"},
     "footer.imprint": {"de": "Impressum", "en": "Imprint"},
     "lang.label": {"de": "Sprache", "en": "Language"},
@@ -151,7 +152,15 @@ TEXTS: dict[str, dict[str, str]] = {
     "dash.view_all": {"de": "Alle ansehen", "en": "View all"},
     "dash.results": {"de": "Ergebnisse", "en": "Results"},
     "dash.open": {"de": "Öffnen", "en": "Open"},
-    "dash.no_tests": {"de": "Noch kein Test erstellt.", "en": "No test created yet."},
+    "dash.open_tests_notice": {
+        "de": "%s Test(s) mit offenen Abgaben — bitte prüfen:",
+        "en": "%s test(s) with open attempts — please review:",
+    },
+    "dash.open_attempts": {
+        "de": "%s offene Abgabe(n)", "en": "%s open attempt(s)",
+    },
+    "dash.open_attempts_badge": {"de": "offen", "en": "open"},
+    "dash.expires": {"de": "Läuft ab", "en": "Expires"},
     "dash.no_quizzes": {"de": "Noch kein Quiz erstellt.", "en": "No quiz created yet."},
     "dash.no_groups": {"de": "Noch keine Gruppe angelegt.", "en": "No group yet."},
 
@@ -214,6 +223,69 @@ TEXTS: dict[str, dict[str, str]] = {
               "deletion are coming to this page; until then, write to the "
               "address in the %s.",
     },
+    "settings.rights_short": {
+        "de": "Du hast das Recht auf Auskunft, Berichtigung, Löschung und "
+              "Datenübertragbarkeit (Art. 15–20 DSGVO).",
+        "en": "You have the right to access, rectification, erasure and data "
+              "portability (Art. 15–20 GDPR).",
+    },
+    "settings.save_profile": {"de": "Profil speichern", "en": "Save profile"},
+    "settings.email_note": {
+        "de": "E-Mail-Adresse kann hier nicht geändert werden.",
+        "en": "E-mail address cannot be changed here.",
+    },
+    "settings.dashboard": {"de": "Dashboard anpassen", "en": "Customise dashboard"},
+    "settings.dashboard_text": {
+        "de": "Wähle, welche Bereiche auf deiner Übersicht angezeigt werden. "
+              "Die Begrüßung mit deinem Namen bleibt immer sichtbar.",
+        "en": "Choose which sections appear on your dashboard. "
+              "The greeting with your name always stays visible.",
+    },
+    "settings.save_dashboard": {"de": "Speichern", "en": "Save"},
+    "settings.dash_stats": {"de": "Statistiken (Zähler)", "en": "Statistics (counters)"},
+    "settings.dash_tests": {"de": "Tests", "en": "Tests"},
+    "settings.dash_quizzes": {"de": "Quizze", "en": "Quizzes"},
+    "settings.dash_groups": {"de": "Gruppen", "en": "Groups"},
+    "settings.dash_notifications": {
+        "de": "Benachrichtigungen (offene Tests)",
+        "en": "Notifications (open tests)",
+    },
+    "settings.delete_account": {"de": "Konto löschen", "en": "Delete account"},
+    "settings.delete_account_text": {
+        "de": "Das Löschen deines Kontos ist endgültig. Alle deine Daten, "
+              "Gruppen, Quizze und Tests werden unwiderruflich entfernt.",
+        "en": "Deleting your account is permanent. All your data, groups, "
+              "quizzes and tests will be irreversibly removed.",
+    },
+    "settings.delete_account_show": {
+        "de": "Konto löschen …", "en": "Delete account …",
+    },
+    "settings.delete_confirm_hint": {
+        "de": "Gib zur Bestätigung deine E-Mail-Adresse ein: %s",
+        "en": "Type your e-mail address to confirm: %s",
+    },
+    "settings.delete_type_email": {
+        "de": "E-Mail-Adresse zur Bestätigung", "en": "E-mail address to confirm",
+    },
+    "settings.delete_final_confirm": {
+        "de": "Konto wirklich endgültig löschen?",
+        "en": "Really delete your account permanently?",
+    },
+    "settings.delete_account_btn": {
+        "de": "Konto endgültig löschen", "en": "Permanently delete account",
+    },
+    "msg.profile_saved": {"de": "Profil gespeichert.", "en": "Profile saved."},
+    "msg.dashboard_saved": {
+        "de": "Dashboard-Einstellungen gespeichert.",
+        "en": "Dashboard settings saved.",
+    },
+    "msg.account_deleted": {
+        "de": "Konto wurde gelöscht.", "en": "Account has been deleted.",
+    },
+    "err.delete_email_mismatch": {
+        "de": "Die eingegebene E-Mail-Adresse stimmt nicht überein.",
+        "en": "The e-mail address entered does not match.",
+    },
 
     # -- groups ------------------------------------------------------------
     "groups.title": {"de": "Gruppen", "en": "Groups"},
@@ -228,6 +300,19 @@ TEXTS: dict[str, dict[str, str]] = {
     "groups.none": {
         "de": "Noch keine Gruppen. Lege oben deine erste an.",
         "en": "No groups yet. Create your first one above.",
+    },
+    "groups.drag_hint": {
+        "de": "Ziehe die Gruppen, um sie neu zu sortieren.",
+        "en": "Drag groups to reorder them.",
+    },
+    "groups.drag": {"de": "Verschieben", "en": "Drag to reorder"},
+    "groups.members_short": {"de": "Mitgl.", "en": "members"},
+    "groups.new_lead": {
+        "de": "Erstelle eine neue Gruppe und lade Trainees per E-Mail ein.",
+        "en": "Create a new group and invite trainees by e-mail.",
+    },
+    "groups.name_placeholder": {
+        "de": "z. B. Kurs 2026 Gruppe A", "en": "e.g. Course 2026 Group A",
     },
     "groups.open": {"de": "Öffnen", "en": "Open"},
     "groups.delete": {"de": "Löschen", "en": "Delete"},
@@ -499,6 +584,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "en": "Only applies to a per-trainee selection. A fixed set is always "
               "the same questions.",
     },
+    "test.expires_at": {"de": "Ablaufdatum", "en": "Expiry date"},
+    "test.expires_hint": {
+        "de": "Optional. Nach diesem Datum können keine neuen Versuche mehr "
+              "gestartet werden. Leer lassen für kein Ablaufdatum.",
+        "en": "Optional. After this date no new attempts can be started. "
+              "Leave empty for no expiry.",
+    },
     "test.edit_title": {"de": "Test bearbeiten", "en": "Edit test"},
     "test.create": {"de": "Test erstellen", "en": "Create test"},
     "test.save": {"de": "Test speichern", "en": "Save test"},
@@ -638,6 +730,98 @@ TEXTS: dict[str, dict[str, str]] = {
         "en": "This attempt is already finished.",
     },
 
+    # -- courses -----------------------------------------------------------
+    "courses.lead": {
+        "de": "Kurse bündeln Gruppen und Materialien. Erstelle einen Kurs, "
+              "weise Gruppen zu und lade Dateien hoch.",
+        "en": "Courses bundle groups and materials. Create a course, assign "
+              "groups and upload files.",
+    },
+    "courses.new": {"de": "Neuer Kurs", "en": "New course"},
+    "courses.new_lead": {
+        "de": "Lege einen neuen Kurs an. Du kannst danach Gruppen hinzufügen "
+              "und Dateien hochladen.",
+        "en": "Create a new course. You can then add groups and upload files.",
+    },
+    "courses.name": {"de": "Kursname", "en": "Course name"},
+    "courses.name_placeholder": {
+        "de": "z. B. Mathematik Grundkurs 2026",
+        "en": "e.g. Mathematics Foundation 2026",
+    },
+    "courses.description": {"de": "Beschreibung (optional)", "en": "Description (optional)"},
+    "courses.description_placeholder": {
+        "de": "Kurze Beschreibung des Kursinhalts",
+        "en": "Brief description of the course content",
+    },
+    "courses.create": {"de": "Kurs erstellen", "en": "Create course"},
+    "courses.save": {"de": "Kurs speichern", "en": "Save course"},
+    "courses.edit": {"de": "Kurs bearbeiten", "en": "Edit course"},
+    "courses.manage": {"de": "Verwalten", "en": "Manage"},
+    "courses.back": {"de": "Zurück zu den Kursen", "en": "Back to courses"},
+    "courses.delete": {"de": "Löschen", "en": "Delete"},
+    "courses.delete_confirm": {
+        "de": "Diesen Kurs löschen? Alle Dateien und Gruppen-Zuweisungen gehen verloren.",
+        "en": "Delete this course? All files and group assignments will be lost.",
+    },
+    "courses.none": {
+        "de": "Noch keine Kurse. Erstelle deinen ersten Kurs.",
+        "en": "No courses yet. Create your first course.",
+    },
+    "courses.groups_count": {"de": "Gruppen", "en": "groups"},
+    "courses.files_count": {"de": "Dateien", "en": "files"},
+    "courses.assigned_groups": {"de": "Zugewiesene Gruppen", "en": "Assigned groups"},
+    "courses.assign_groups": {"de": "Gruppen zuweisen", "en": "Assign groups"},
+    "courses.assign_groups_text": {
+        "de": "Wähle, welche Gruppen diesen Kurs sehen sollen.",
+        "en": "Choose which groups should see this course.",
+    },
+    "courses.include": {"de": "Einschließen", "en": "Include"},
+    "courses.save_groups": {"de": "Gruppen speichern", "en": "Save groups"},
+    "courses.no_groups_hint": {
+        "de": "Du hast noch keine Gruppen. Lege erst eine Gruppe an.",
+        "en": "You have no groups yet. Create a group first.",
+    },
+    "courses.no_groups_yet": {
+        "de": "Noch keine Gruppe zugewiesen.",
+        "en": "No group assigned yet.",
+    },
+    "courses.files": {"de": "Dateien", "en": "Files"},
+    "courses.files_hint": {
+        "de": "Lade Dateien hoch, die die Trainees dieses Kurses sehen können "
+              "(PDF, Bilder, Excel, Word, Text, CSV — max. 20 MB).",
+        "en": "Upload files that trainees of this course can see "
+              "(PDF, images, Excel, Word, text, CSV — max. 20 MB).",
+    },
+    "courses.upload_file": {"de": "Datei auswählen", "en": "Choose file"},
+    "courses.file_label": {"de": "Anzeigename", "en": "Display name"},
+    "courses.file_label_placeholder": {
+        "de": "z. B. Skript Kapitel 1", "en": "e.g. Script Chapter 1",
+    },
+    "courses.optional": {"de": "optional", "en": "optional"},
+    "courses.upload": {"de": "Hochladen", "en": "Upload"},
+    "courses.download": {"de": "Herunterladen", "en": "Download"},
+    "courses.no_files": {"de": "Noch keine Dateien hochgeladen.", "en": "No files uploaded yet."},
+    "courses.file_delete_confirm": {
+        "de": "Diese Datei löschen?", "en": "Delete this file?",
+    },
+    "msg.course_created": {"de": "Kurs erstellt.", "en": "Course created."},
+    "msg.course_saved": {"de": "Kurs gespeichert.", "en": "Course saved."},
+    "msg.course_deleted": {"de": "Kurs gelöscht.", "en": "Course deleted."},
+    "msg.course_groups_saved": {
+        "de": "Gruppen-Zuweisung gespeichert.", "en": "Group assignment saved.",
+    },
+    "msg.course_file_uploaded": {"de": "Datei hochgeladen.", "en": "File uploaded."},
+    "msg.course_file_deleted": {"de": "Datei gelöscht.", "en": "File deleted."},
+    "err.course_not_found": {"de": "Kurs nicht gefunden.", "en": "Course not found."},
+    "err.file_too_large": {
+        "de": "Die Datei ist zu groß (max. 20 MB).",
+        "en": "The file is too large (max. 20 MB).",
+    },
+    "err.file_type_not_allowed": {
+        "de": "Dieser Dateityp ist nicht erlaubt.",
+        "en": "This file type is not allowed.",
+    },
+
     # -- flash messages (referenced by key in redirects) -------------------
     "msg.attempts_reset": {
         "de": "Versuche zurückgesetzt.", "en": "Attempts reset.",
@@ -712,6 +896,13 @@ TEXTS: dict[str, dict[str, str]] = {
         "de": "Quiz importiert.", "en": "Quiz imported.",
     },
     "err.unknown_role": {"de": "Unbekannte Rolle.", "en": "Unknown role."},
+    "err.first_name_required": {
+        "de": "Bitte einen Vornamen eingeben.", "en": "Please enter a first name.",
+    },
+    "err.course_name_required": {
+        "de": "Bitte einen Kursnamen eingeben.", "en": "Please enter a course name.",
+    },
+    "err.file_not_found": {"de": "Datei nicht gefunden.", "en": "File not found."},
 }
 
 

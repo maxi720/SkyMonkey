@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% set page = "courses" %}
+{% block title %}{{ course.name }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ course.name }}</h1>
+        {% if course.description %}
+            <p class="lead">{{ course.description }}</p>
+        {% endif %}
+    </div>
+    {% if profile.is_trainer %}
+        <a class="btn btn-ghost btn-small" href="/courses">{{ t("courses.back") }}</a>
+    {% else %}
+        <a class="btn btn-ghost btn-small" href="/courses">{{ t("courses.back") }}</a>
+    {% endif %}
+</div>
+
+{% if profile.is_trainer %}
+{# --- Edit course details --- #}
+<section class="card form-narrow">
+    <h2 style="margin-top:0">{{ t("courses.edit") }}</h2>
+    <form method="post" action="/courses/{{ course.id }}/edit">
+        <label for="course_name">{{ t("courses.name") }}</label>
+        <input id="course_name" name="name" type="text" maxlength="120"
+               value="{{ course.name }}" required>
+        <label for="course_desc">{{ t("courses.description") }}</label>
+        <textarea id="course_desc" name="description" rows="3"
+                  placeholder="{{ t('courses.description_placeholder') }}">{{ course.description or '' }}</textarea>
+        <button class="btn btn-success" type="submit">{{ t("courses.save") }}</button>
+    </form>
+</section>
+
+{# --- Assign groups --- #}
+<section class="card">
+    <h2 style="margin-top:0">{{ t("courses.assign_groups") }}</h2>
+    <p class="muted">{{ t("courses.assign_groups_text") }}</p>
+    {% if all_groups %}
+        <form method="post" action="/courses/{{ course.id }}/groups">
+            <ul class="plain-list" style="margin-bottom:16px">
+                {% for g in all_groups %}
+                    <li>
+                        <span>{{ g.name }}</span>
+                        <span class="muted">{{ g.member_count }} {{ t("groups.members_short") }}</span>
+                        <div class="check" style="margin:0">
+                            <input type="checkbox" id="grp_{{ g.id }}" name="group_ids"
+                                   value="{{ g.id }}"
+                                   {% if g.id in assigned_group_ids %}checked{% endif %}>
+                            <label for="grp_{{ g.id }}" style="font-size:14px;color:var(--text)">{{ t("courses.include") }}</label>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+            <button class="btn btn-ghost" type="submit">{{ t("courses.save_groups") }}</button>
+        </form>
+    {% else %}
+        <p class="muted">{{ t("courses.no_groups_hint") }}</p>
+        <a class="btn btn-ghost btn-small" href="/groups/new">{{ t("groups.new") }}</a>
+    {% endif %}
+</section>
+
+{# --- Upload files --- #}
+<section class="card">
+    <h2 style="margin-top:0">{{ t("courses.files") }}</h2>
+    <p class="muted">{{ t("courses.files_hint") }}</p>
+    <form method="post" action="/courses/{{ course.id }}/files" enctype="multipart/form-data"
+          style="margin-bottom:16px">
+        <label for="course_file">{{ t("courses.upload_file") }}</label>
+        <input id="course_file" name="file" type="file"
+               accept=".pdf,.jpg,.jpeg,.png,.txt,.csv,.xls,.xlsx,.doc,.docx">
+        <label for="file_label">{{ t("courses.file_label") }} <small>({{ t("courses.optional") }})</small></label>
+        <input id="file_label" name="label" type="text" maxlength="120"
+               placeholder="{{ t('courses.file_label_placeholder') }}">
+        <button class="btn btn-ghost" type="submit">{{ t("courses.upload") }}</button>
+    </form>
+
+    {% if course_files %}
+        <ul class="plain-list">
+            {% for f in course_files %}
+                <li>
+                    <span>{{ f.name }}</span>
+                    <span class="muted">{{ f.size_label }}</span>
+                    <div class="btn-row">
+                        <a class="btn btn-ghost btn-small"
+                           href="/courses/{{ course.id }}/files/{{ f.id }}/download">{{ t("courses.download") }}</a>
+                        <form method="post" action="/courses/{{ course.id }}/files/{{ f.id }}/delete"
+                              data-confirm="{{ t('courses.file_delete_confirm') }}">
+                            <button class="btn btn-danger btn-small" type="submit">{{ t("courses.delete") }}</button>
+                        </form>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="muted">{{ t("courses.no_files") }}</p>
+    {% endif %}
+</section>
+
+{% else %}
+{# Trainee view: read-only, see assigned groups + download files #}
+<section class="card">
+    <h2 style="margin-top:0">{{ t("courses.assigned_groups") }}</h2>
+    {% if assigned_groups %}
+        <ul class="tag-list">
+            {% for g in assigned_groups %}
+                <li>{{ g }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="muted">{{ t("courses.no_groups_yet") }}</p>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h2 style="margin-top:0">{{ t("courses.files") }}</h2>
+    {% if course_files %}
+        <ul class="plain-list">
+            {% for f in course_files %}
+                <li>
+                    <span>{{ f.name }}</span>
+                    <span class="muted">{{ f.size_label }}</span>
+                    <a class="btn btn-ghost btn-small"
+                       href="/courses/{{ course.id }}/files/{{ f.id }}/download">{{ t("courses.download") }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="muted">{{ t("courses.no_files") }}</p>
+    {% endif %}
+</section>
+{% endif %}
+{% endblock %}

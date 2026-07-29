@@ -36,6 +36,11 @@
                placeholder="{{ t('test.no_limit') }}" value="{{ val('time_limit_min') }}">
         <p class="muted small-note">{{ t("test.time_limit_hint") }}</p>
 
+        <label for="expires_at">{{ t("test.expires_at") }}</label>
+        <input id="expires_at" name="expires_at" type="datetime-local"
+               value="{{ val('expires_at') }}">
+        <p class="muted small-note">{{ t("test.expires_hint") }}</p>
+
         <label for="notes">{{ t("quiz.notes") }}</label>
         <textarea id="notes" name="notes" rows="3"
                   placeholder="{{ t('quiz.notes_placeholder') }}">{{ val('notes') }}</textarea>

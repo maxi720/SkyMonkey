@@ -28,17 +28,6 @@
     <aside class="sidebar">
         <a class="brand" href="/">QuizMonkey</a>
 
-        {% if profile.is_trainer %}
-            <div class="side-actions">
-                <a class="btn btn-block" href="/tests/new">{{ t("dash.new_test") }}</a>
-                <a class="btn btn-ghost btn-block" href="/quizzes/new">{{ t("dash.new_quiz") }}</a>
-            </div>
-        {% else %}
-            <div class="side-actions">
-                <a class="btn btn-block" href="/take">{{ t("dash.take_cta") }}</a>
-            </div>
-        {% endif %}
-
         <nav class="side-nav" aria-label="{{ t('nav.dashboard') }}">
             <a href="/"{% if page == 'dashboard' %} aria-current="page"{% endif %}>
                 {{ t("nav.dashboard") }}</a>
@@ -47,6 +36,8 @@
                 <span class="side-nav-label">{{ t("nav.section_manage") }}</span>
                 <a href="/groups"{% if page == 'groups' %} aria-current="page"{% endif %}>
                     {{ t("nav.groups") }}</a>
+                <a href="/courses"{% if page == 'courses' %} aria-current="page"{% endif %}>
+                    {{ t("nav.courses") }}</a>
                 <a href="/quizzes"{% if page == 'quizzes' %} aria-current="page"{% endif %}>
                     {{ t("nav.quizzes") }}</a>
                 <a href="/tests"{% if page == 'tests' %} aria-current="page"{% endif %}>
@@ -55,6 +46,8 @@
                 <span class="side-nav-label">{{ t("nav.section_learn") }}</span>
                 <a href="/take"{% if page == 'take' %} aria-current="page"{% endif %}>
                     {{ t("nav.take") }}</a>
+                <a href="/courses"{% if page == 'courses' %} aria-current="page"{% endif %}>
+                    {{ t("nav.courses") }}</a>
             {% endif %}
         </nav>
 
@@ -64,10 +57,6 @@
                 <span class="badge {% if profile.is_trainer %}badge-trainer{% endif %}">
                     {{ t("role." ~ profile.role) }}</span>
             </div>
-            <form method="post" action="/logout">
-                <button class="btn btn-ghost btn-block btn-small" type="submit">
-                    {{ t("nav.signout") }}</button>
-            </form>
             <p class="side-legal">
                 <a href="/privacy">{{ t("footer.privacy") }}</a>
                 <a href="/imprint">{{ t("footer.imprint") }}</a>
@@ -77,18 +66,52 @@
 
     <div class="shell-main">
         <header class="topbar">
-            <a class="icon-btn{% if page == 'settings' %} is-active{% endif %}"
-               href="/settings" aria-label="{{ t('nav.settings') }}"
-               title="{{ t('nav.settings') }}"
-               {% if page == 'settings' %}aria-current="page"{% endif %}>
-                {# Inline SVG: no icon font to download, nothing third-party. #}
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                     stroke-linejoin="round" aria-hidden="true" focusable="false">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-            </a>
+            {# Settings dropdown — inline details/summary, no JS dependency. #}
+            <div class="topbar-menu">
+                <button class="icon-btn topbar-menu-trigger{% if page == 'settings' %} is-active{% endif %}"
+                        aria-label="{{ t('nav.settings') }}"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        data-topbar-trigger>
+                    {# Gear icon — same inline SVG as before, nothing third-party. #}
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+                <div class="topbar-dropdown" id="topbarDropdown" hidden>
+                    <div class="topbar-dropdown-header">
+                        <span class="topbar-dropdown-name">{{ profile.display_name }}</span>
+                        <span class="topbar-dropdown-email">{{ profile.email }}</span>
+                    </div>
+                    <div class="topbar-dropdown-divider"></div>
+                    <a class="topbar-dropdown-item{% if page == 'settings' %} is-active{% endif %}"
+                       href="/settings">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                        {{ t("nav.settings") }}
+                    </a>
+                    <div class="topbar-dropdown-divider"></div>
+                    <form method="post" action="/logout" class="topbar-dropdown-form">
+                        <button class="topbar-dropdown-item topbar-dropdown-signout" type="submit">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                 stroke-linejoin="round" aria-hidden="true">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                            {{ t("nav.signout") }}
+                        </button>
+                    </form>
+                </div>
+            </div>
         </header>
 
         <main class="content" id="main">

@@ -41,6 +41,12 @@
                         <span>{{ t("test.time_limit") }}</span>
                         <strong>{% if x.time_limit_min %}{{ x.time_limit_min }} {{ t("test.minutes") }}{% else %}{{ t("test.no_limit") }}{% endif %}</strong>
                     </li>
+                    {% if x.expires_at %}
+                    <li>
+                        <span>{{ t("test.expires_at") }}</span>
+                        <strong>{{ x.expires_at }}</strong>
+                    </li>
+                    {% endif %}
                 </ul>
 
                 <h3>{{ t("quiz.notes") }}</h3>

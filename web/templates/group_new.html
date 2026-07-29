@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% set page = "groups" %}
+{% block title %}{{ t("groups.new") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ t("groups.new") }}</h1>
+        <p class="lead">{{ t("groups.new_lead") }}</p>
+    </div>
+    <a class="btn btn-ghost btn-small" href="/groups">{{ t("group.back") }}</a>
+</div>
+
+<section class="card form-narrow">
+    <form method="post" action="/groups">
+        <label for="name">{{ t("groups.name") }}</label>
+        <input id="name" name="name" type="text" maxlength="80" required
+               placeholder="{{ t('groups.name_placeholder') }}">
+        <button class="btn btn-success" type="submit">{{ t("groups.create") }}</button>
+    </form>
+</section>
+{% endblock %}

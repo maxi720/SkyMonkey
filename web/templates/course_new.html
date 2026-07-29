@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% set page = "courses" %}
+{% block title %}{{ t("courses.new") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ t("courses.new") }}</h1>
+        <p class="lead">{{ t("courses.new_lead") }}</p>
+    </div>
+    <a class="btn btn-ghost btn-small" href="/courses">{{ t("courses.back") }}</a>
+</div>
+
+<section class="card form-narrow">
+    <form method="post" action="/courses">
+        <label for="name">{{ t("courses.name") }}</label>
+        <input id="name" name="name" type="text" maxlength="120"
+               placeholder="{{ t('courses.name_placeholder') }}" required>
+        <label for="description">{{ t("courses.description") }}</label>
+        <textarea id="description" name="description" rows="3"
+                  placeholder="{{ t('courses.description_placeholder') }}"></textarea>
+        <button class="btn btn-success" type="submit">{{ t("courses.create") }}</button>
+    </form>
+</section>
+{% endblock %}

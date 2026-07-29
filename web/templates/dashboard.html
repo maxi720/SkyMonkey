@@ -3,8 +3,7 @@
 {% block title %}{{ t("nav.dashboard") }} — QuizMonkey{% endblock %}
 
 {% block content %}
-{# The create actions live in the sidebar, so they are deliberately not
-   repeated here. #}
+{# The greeting always stays, regardless of dashboard prefs. #}
 <div class="page-head">
     <div>
         <h1>{{ t("dash.hello", profile.first_name or profile.display_name) }}</h1>
@@ -13,26 +12,47 @@
 </div>
 
 {% if profile.is_trainer %}
-    <div class="stat-grid">
-        <a class="stat" href="/groups">
-            <span class="stat-value">{{ group_count }}</span>
-            <span class="stat-label">{{ t("dash.stat_groups") }}</span>
-        </a>
-        <a class="stat" href="/groups">
-            <span class="stat-value">{{ trainee_count }}</span>
-            <span class="stat-label">{{ t("dash.stat_trainees") }}</span>
-        </a>
-        <a class="stat" href="/quizzes">
-            <span class="stat-value">{{ quiz_count }}</span>
-            <span class="stat-label">{{ t("dash.stat_quizzes") }}</span>
-        </a>
-        <a class="stat" href="/tests">
-            <span class="stat-value">{{ test_count }}</span>
-            <span class="stat-label">{{ t("dash.stat_tests") }}</span>
-        </a>
-    </div>
+    {# --- Open test notifications --- #}
+    {% if dash_prefs.get('notifications', True) and pending_tests %}
+        <div class="msg msg-warn" role="status" style="margin-bottom:24px">
+            <strong>{{ t("dash.open_tests_notice", pending_tests | length) }}</strong>
+            <ul style="margin:8px 0 0;padding-left:20px">
+                {% for t_item in pending_tests %}
+                    <li>
+                        <a href="/tests/{{ t_item.id }}/results">{{ t_item.name }}</a>
+                        &mdash; {{ t("dash.open_attempts", t_item.open_count) }}
+                        {% if t_item.expires_at %}
+                            <span class="muted">({{ t("dash.expires") }}: {{ t_item.expires_at }})</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    {% if dash_prefs.get('stats', True) %}
+        <div class="stat-grid">
+            <a class="stat" href="/groups">
+                <span class="stat-value">{{ group_count }}</span>
+                <span class="stat-label">{{ t("dash.stat_groups") }}</span>
+            </a>
+            <a class="stat" href="/groups">
+                <span class="stat-value">{{ trainee_count }}</span>
+                <span class="stat-label">{{ t("dash.stat_trainees") }}</span>
+            </a>
+            <a class="stat" href="/quizzes">
+                <span class="stat-value">{{ quiz_count }}</span>
+                <span class="stat-label">{{ t("dash.stat_quizzes") }}</span>
+            </a>
+            <a class="stat" href="/tests">
+                <span class="stat-value">{{ test_count }}</span>
+                <span class="stat-label">{{ t("dash.stat_tests") }}</span>
+            </a>
+        </div>
+    {% endif %}
 
     <div class="panel-grid">
+        {% if dash_prefs.get('tests', True) %}
         <section class="card">
             <div class="card-head">
                 <h2>{{ t("dash.recent_tests") }}</h2>
@@ -45,6 +65,11 @@
                             <span>{{ x.name }}</span>
                             <span class="muted">{{ x.question_count }} ·
                                 {{ x.pass_percent }} %</span>
+                            {% if x.open_count %}
+                                <span class="badge" style="background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent-soft-bd)">
+                                    {{ x.open_count }} {{ t("dash.open_attempts_badge") }}
+                                </span>
+                            {% endif %}
                             <a class="btn btn-ghost btn-small"
                                href="/tests/{{ x.id }}/results">{{ t("dash.results") }}</a>
                         </li>
@@ -55,7 +80,9 @@
                 <p><a class="btn btn-ghost btn-small" href="/tests/new">{{ t("dash.new_test") }}</a></p>
             {% endif %}
         </section>
+        {% endif %}
 
+        {% if dash_prefs.get('quizzes', True) %}
         <section class="card">
             <div class="card-head">
                 <h2>{{ t("dash.recent_quizzes") }}</h2>
@@ -77,7 +104,9 @@
                 <p><a class="btn btn-ghost btn-small" href="/quizzes/new">{{ t("dash.new_quiz") }}</a></p>
             {% endif %}
         </section>
+        {% endif %}
 
+        {% if dash_prefs.get('groups', True) %}
         <section class="card">
             <div class="card-head">
                 <h2>{{ t("dash.your_groups") }}</h2>
@@ -99,21 +128,25 @@
                 <p><a class="btn btn-ghost btn-small" href="/groups">{{ t("dash.groups_cta") }}</a></p>
             {% endif %}
         </section>
+        {% endif %}
     </div>
 
 {% else %}
-    <div class="stat-grid">
-        <div class="stat">
-            <span class="stat-value">{{ test_count }}</span>
-            <span class="stat-label">{{ t("dash.stat_released") }}</span>
+    {% if dash_prefs.get('stats', True) %}
+        <div class="stat-grid">
+            <div class="stat">
+                <span class="stat-value">{{ test_count }}</span>
+                <span class="stat-label">{{ t("dash.stat_released") }}</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ open_count }}</span>
+                <span class="stat-label">{{ t("dash.stat_open") }}</span>
+            </div>
         </div>
-        <div class="stat">
-            <span class="stat-value">{{ open_count }}</span>
-            <span class="stat-label">{{ t("dash.stat_open") }}</span>
-        </div>
-    </div>
+    {% endif %}
 
     <div class="panel-grid">
+        {% if dash_prefs.get('tests', True) %}
         <section class="card">
             <div class="card-head">
                 <h2>{{ t("dash.your_tests") }}</h2>
@@ -138,6 +171,7 @@
                 <p class="muted">{{ t("take.none") }}</p>
             {% endif %}
         </section>
+        {% endif %}
 
         <section class="card">
             <div class="card-head"><h2>{{ t("dash.trainee_title") }}</h2></div>

@@ -1,46 +1,48 @@
 {% extends "base.html" %}
 {% set page = "groups" %}
-{% block title %}Groups — QuizMonkey{% endblock %}
+{% block title %}{{ t("nav.groups") }} — QuizMonkey{% endblock %}
 
 {% block content %}
-<h1>Groups</h1>
-<p class="lead">Create a group, then invite trainees by e-mail address.</p>
-
-<section class="card form-narrow">
-    <h2 style="margin-top:0">New group</h2>
-    <form method="post" action="/groups">
-        <label for="name">Group name</label>
-        <input id="name" name="name" type="text" maxlength="80" required
-               placeholder="e.g. Recurrent 2026">
-        <button class="btn btn-success" type="submit">Create group</button>
-    </form>
-</section>
+<div class="page-head">
+    <div>
+        <h1>{{ t("nav.groups") }}</h1>
+        <p class="lead">{{ t("groups.lead") }}</p>
+    </div>
+    <a class="btn btn-success" href="/groups/new">{{ t("groups.new") }}</a>
+</div>
 
 {% if groups %}
-    <div class="card-grid">
+    <p class="muted" style="font-size:13px;margin-bottom:12px">{{ t("groups.drag_hint") }}</p>
+    <ul class="group-list" id="groupList" data-reorder-url="/groups/reorder">
         {% for g in groups %}
-            <section class="card">
-                <h3 style="margin-top:0">
-                    <a href="/groups/{{ g.id }}">{{ g.name }}</a>
-                </h3>
-                <p class="muted">
-                    {{ g.member_count }} member{{ '' if g.member_count == 1 else 's' }}
-                </p>
-                <div class="btn-row">
-                    <a class="btn btn-info" href="/groups/{{ g.id }}">Open</a>
+            <li class="group-item" data-id="{{ g.id }}" draggable="true">
+                <span class="group-drag-handle" aria-hidden="true" title="{{ t('groups.drag') }}">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round">
+                        <circle cx="9" cy="5" r="1"></circle><circle cx="15" cy="5" r="1"></circle>
+                        <circle cx="9" cy="12" r="1"></circle><circle cx="15" cy="12" r="1"></circle>
+                        <circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="19" r="1"></circle>
+                    </svg>
+                </span>
+                <a class="group-name" href="/groups/{{ g.id }}">{{ g.name }}</a>
+                <span class="badge">
+                    {{ g.member_count }} {{ t("groups.members_short") }}
+                </span>
+                <div class="group-actions">
+                    <a class="btn btn-ghost btn-small" href="/groups/{{ g.id }}">{{ t("groups.open") }}</a>
                     <form method="post" action="/groups/{{ g.id }}/delete"
                           data-confirm="{{ t('groups.delete_confirm') }}">
-                        <button class="btn btn-danger" type="submit">Delete</button>
+                        <button class="btn btn-danger btn-small" type="submit">{{ t("groups.delete") }}</button>
                     </form>
                 </div>
-            </section>
+            </li>
         {% endfor %}
-    </div>
+    </ul>
 {% else %}
     <div class="card">
-        <p class="muted" style="margin:0">
-            No groups yet. Create your first one above.
-        </p>
+        <p class="muted" style="margin:0">{{ t("groups.none") }}</p>
+        <p style="margin:12px 0 0"><a class="btn btn-success btn-small" href="/groups/new">{{ t("groups.new") }}</a></p>
     </div>
 {% endif %}
 {% endblock %}

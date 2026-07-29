@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% set page = "courses" %}
+{% block title %}{{ t("nav.courses") }} — QuizMonkey{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1>{{ t("nav.courses") }}</h1>
+        <p class="lead">{{ t("courses.lead") }}</p>
+    </div>
+    {% if profile.is_trainer %}
+        <a class="btn btn-success" href="/courses/new">{{ t("courses.new") }}</a>
+    {% endif %}
+</div>
+
+{% if courses %}
+    <div class="quiz-list">
+        {% for c in courses %}
+            <details class="quiz-item">
+                <summary>
+                    <span class="quiz-item-name">{{ c.name }}</span>
+                    {% if c.group_count %}
+                        <span class="badge">{{ c.group_count }} {{ t("courses.groups_count") }}</span>
+                    {% endif %}
+                    {% if c.file_count %}
+                        <span class="badge">{{ c.file_count }} {{ t("courses.files_count") }}</span>
+                    {% endif %}
+                    {% if profile.is_trainer %}
+                        <div class="quiz-item-actions">
+                            <a class="btn btn-ghost btn-small" href="/courses/{{ c.id }}">{{ t("courses.manage") }}</a>
+                            <form method="post" action="/courses/{{ c.id }}/delete"
+                                  data-confirm="{{ t('courses.delete_confirm') }}">
+                                <button class="btn btn-danger btn-small" type="submit">{{ t("courses.delete") }}</button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <a class="btn btn-ghost btn-small" href="/courses/{{ c.id }}">{{ t("dash.open") }}</a>
+                    {% endif %}
+                </summary>
+                <div class="quiz-item-body">
+                    {% if c.description %}
+                        <p class="muted">{{ c.description }}</p>
+                    {% endif %}
+                    {% if c.groups %}
+                        <h3>{{ t("courses.assigned_groups") }}</h3>
+                        <ul class="tag-list">
+                            {% for g in c.groups %}
+                                <li>{{ g }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if c.files %}
+                        <h3>{{ t("courses.files") }}</h3>
+                        <ul class="plain-list">
+                            {% for f in c.files %}
+                                <li>
+                                    <span>{{ f.name }}</span>
+                                    <span class="muted">{{ f.size_label }}</span>
+                                    <a class="btn btn-ghost btn-small"
+                                       href="/courses/{{ c.id }}/files/{{ f.id }}/download">{{ t("courses.download") }}</a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </details>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card">
+        <p class="muted" style="margin:0">{{ t("courses.none") }}</p>
+        {% if profile.is_trainer %}
+            <p style="margin:12px 0 0">
+                <a class="btn btn-ghost btn-small" href="/courses/new">{{ t("courses.new") }}</a>
+            </p>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}

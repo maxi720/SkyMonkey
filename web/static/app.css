@@ -1123,3 +1123,154 @@ code {
     white-space: nowrap;
     border: 0;
 }
+
+/* ---------- topbar dropdown menu ----------
+   Pure CSS + minimal JS (one toggle function). The dropdown closes on outside
+   click via the focusout mechanism in app.js. No extra dependencies. */
+.topbar-menu { position: relative; }
+
+.topbar-menu-trigger { position: relative; z-index: 2; }
+
+.topbar-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-pop);
+    z-index: 100;
+    overflow: hidden;
+}
+
+.topbar-dropdown[hidden] { display: none; }
+
+.topbar-dropdown-header {
+    padding: 12px 14px 10px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+}
+
+.topbar-dropdown-name {
+    display: block;
+    font-weight: 650;
+    font-size: 14px;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-dropdown-email {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 2px;
+}
+
+.topbar-dropdown-divider {
+    height: 1px;
+    background: var(--border);
+}
+
+.topbar-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 14px;
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background var(--speed) ease;
+    text-align: left;
+}
+
+.topbar-dropdown-item:hover { background: var(--surface-2); }
+.topbar-dropdown-item.is-active { color: var(--primary-ink); background: var(--primary-soft); }
+.topbar-dropdown-signout { color: var(--danger); }
+.topbar-dropdown-signout:hover { background: var(--danger-soft); }
+
+.topbar-dropdown-form { display: block; }
+
+/* ---------- group drag-and-drop list ---------- */
+.group-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.group-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    cursor: default;
+    transition: background var(--speed) ease, border-color var(--speed) ease,
+                box-shadow var(--speed) ease;
+}
+
+.group-item:hover { background: var(--surface-2); }
+
+.group-item.is-dragging {
+    opacity: 0.55;
+    box-shadow: var(--shadow-pop);
+    border-color: var(--border-strong);
+}
+
+.group-item.is-drop-target { border-color: var(--primary); background: var(--primary-soft); }
+
+.group-drag-handle {
+    color: var(--muted);
+    cursor: grab;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    transition: color var(--speed) ease, background var(--speed) ease;
+}
+
+.group-drag-handle:hover { color: var(--text); background: var(--surface-2); }
+.group-drag-handle:active { cursor: grabbing; }
+
+.group-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text);
+    text-decoration: none;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.group-name:hover { color: var(--primary); }
+
+.group-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* ---------- delete-confirm expandable block ---------- */
+.delete-confirm-block > summary { display: inline-flex; }
+.delete-confirm-block > summary::-webkit-details-marker { display: none; }
+.delete-confirm-block > summary::marker { display: none; }

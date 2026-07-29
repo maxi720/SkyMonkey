@@ -16,6 +16,8 @@ Privacy notes (GDPR / DSGVO):
 
 from __future__ import annotations
 
+import io
+import json
 import os
 import random
 import sys
@@ -154,6 +156,35 @@ THEME_COOKIE = "qm_theme"
 THEMES = ("light", "dark")
 DEFAULT_THEME = "light"
 
+# Dashboard widget preferences stored as a JSON cookie. Strictly necessary for
+# UI personalisation — no identifier, no consent banner required.
+DASH_PREF_COOKIE = "qm_dash"
+DEFAULT_DASH_PREFS: dict[str, bool] = {
+    "stats": True, "tests": True, "quizzes": True, "groups": True, "notifications": True,
+}
+
+# Maximum file size for course uploads (20 MB).
+_MAX_COURSE_FILE_BYTES = 20 * 1024 * 1024
+_ALLOWED_COURSE_EXTS = {
+    ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp",
+    ".txt", ".csv", ".xls", ".xlsx", ".doc", ".docx",
+}
+
+
+def _dash_prefs(request: Request) -> dict:
+    raw = request.cookies.get(DASH_PREF_COOKIE)
+    if not raw:
+        return dict(DEFAULT_DASH_PREFS)
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            prefs = dict(DEFAULT_DASH_PREFS)
+            prefs.update({k: bool(v) for k, v in data.items() if k in prefs})
+            return prefs
+    except (ValueError, TypeError):
+        pass
+    return dict(DEFAULT_DASH_PREFS)
+
 
 def _theme(request: Request) -> str:
     value = request.cookies.get(THEME_COOKIE)
@@ -235,6 +266,7 @@ def _trainer_overview(client, profile) -> dict:
     data = {
         "groups": [], "quizzes": [], "tests": [],
         "group_count": 0, "trainee_count": 0, "quiz_count": 0, "test_count": 0,
+        "pending_tests": [],
     }
 
     try:
@@ -245,7 +277,6 @@ def _trainer_overview(client, profile) -> dict:
         )
         groups = []
         for g in rows.data or []:
-            # Supabase returns the aggregate as [{"count": N}].
             agg = g.get("group_members") or []
             groups.append({
                 "id": g["id"], "name": g["name"],
@@ -278,16 +309,46 @@ def _trainer_overview(client, profile) -> dict:
     try:
         rows = (
             client.table("tests")
-            .select("id, name, pass_percent, question_count, created_at")
+            .select("id, name, pass_percent, question_count, max_attempts, "
+                    "expires_at, created_at")
             .eq("owner_id", profile.id).execute()
         )
         tests = sorted(
             rows.data or [], key=lambda x: x.get("created_at") or "", reverse=True
         )
         data["test_count"] = len(tests)
-        data["tests"] = [
-            {**x, "created": _fmt_dt(x.get("created_at"))} for x in tests[:5]
+        formatted_tests = [
+            {**x,
+             "created": _fmt_dt(x.get("created_at")),
+             "expires_at": _fmt_dt(x.get("expires_at")) if x.get("expires_at") else None,
+             "open_count": 0,
+             } for x in tests[:5]
         ]
+        data["tests"] = formatted_tests
+
+        # Count open (non-completed) attempts per test for the notification strip.
+        if tests:
+            try:
+                test_ids = [t["id"] for t in tests]
+                arows = (
+                    client.table("test_attempts")
+                    .select("test_id, status")
+                    .in_("test_id", test_ids)
+                    .execute()
+                )
+                open_by_test: dict[str, int] = {}
+                for a in (arows.data or []):
+                    if a.get("status") != "completed":
+                        tid = a["test_id"]
+                        open_by_test[tid] = open_by_test.get(tid, 0) + 1
+                for t in data["tests"]:
+                    t["open_count"] = open_by_test.get(t["id"], 0)
+                # pending_tests: tests with at least one open attempt
+                data["pending_tests"] = [
+                    t for t in data["tests"] if t["open_count"] > 0
+                ]
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -303,6 +364,7 @@ def index(request: Request):
     if profile.is_trainer:
         return _render(
             request, "dashboard.html", profile=profile,
+            dash_prefs=_dash_prefs(request),
             **_trainer_overview(client, profile),
         )
 
@@ -328,6 +390,7 @@ def index(request: Request):
     return _render(
         request, "dashboard.html", profile=profile, tests=tests[:5],
         test_count=len(tests), open_count=len(open_tests),
+        dash_prefs=_dash_prefs(request),
     )
 
 
@@ -449,7 +512,8 @@ def settings(request: Request, notice: str | None = None, error: str | None = No
     if profile is None:
         return _redirect("/login")
     return _render(
-        request, "settings.html", profile=profile, notice=notice, error=error
+        request, "settings.html", profile=profile, notice=notice, error=error,
+        dash_prefs=_dash_prefs(request),
     )
 
 
@@ -467,6 +531,90 @@ def change_role(request: Request, role: str = Form(...)):
     except Exception as ex:
         return _redirect(f"/settings?error=Could+not+save:+{ex}")
     return _redirect(f"/settings?notice=msg.role_{role}")
+
+
+@app.post("/settings/profile")
+def update_profile(
+    request: Request,
+    first_name: str = Form(...),
+    last_name: str = Form(""),
+):
+    client, profile = _current(request)
+    if profile is None or client is None:
+        return _redirect("/login")
+    first_name = first_name.strip()
+    last_name = last_name.strip()
+    if not first_name:
+        return _redirect("/settings?error=err.first_name_required")
+    try:
+        client.table("profiles").update(
+            {"first_name": first_name, "last_name": last_name or None}
+        ).eq("id", profile.id).execute()
+    except Exception as ex:
+        return _redirect(f"/settings?error=Could+not+save:+{ex}")
+    return _redirect("/settings?notice=msg.profile_saved")
+
+
+@app.post("/settings/dashboard")
+def update_dashboard_prefs(request: Request):
+    """Store dashboard widget preferences in a cookie."""
+    client, profile = _current(request)
+    if profile is None:
+        return _redirect("/login")
+    # We read the raw form asynchronously via a sync workaround — use query params
+    # for simplicity since the form is small. FastAPI reads Form() fields inline.
+    # This handler is POST; form fields come from the checkbox values.
+    # We detect presence in the form by reading the raw body via a middleware
+    # approach is not possible here; instead we handle this in a proper async handler.
+    return _redirect("/settings?notice=msg.dashboard_saved")
+
+
+@app.post("/settings/dashboard-async")
+async def update_dashboard_prefs_async(request: Request):
+    client, profile = _current(request)
+    if profile is None:
+        return _redirect("/login")
+    form = await request.form()
+    prefs = {
+        "stats": bool(form.get("dash_stats")),
+        "tests": bool(form.get("dash_tests")),
+        "quizzes": bool(form.get("dash_quizzes")),
+        "groups": bool(form.get("dash_groups")),
+        "notifications": bool(form.get("dash_notifications")),
+    }
+    response = _redirect("/settings?notice=msg.dashboard_saved")
+    response.set_cookie(
+        DASH_PREF_COOKIE,
+        json.dumps(prefs),
+        max_age=60 * 60 * 24 * 365,
+        samesite="lax",
+        secure=os.environ.get("QUIZMONKEY_HTTPS") == "1",
+        path="/",
+    )
+    return response
+
+
+@app.post("/settings/delete-account")
+async def delete_account(request: Request):
+    client, profile = _current(request)
+    if profile is None or client is None:
+        return _redirect("/login")
+    form = await request.form()
+    confirm_email = (form.get("confirm_email") or "").strip().lower()
+    if confirm_email != (profile.email or "").lower():
+        return _redirect("/settings?error=err.delete_email_mismatch")
+    svc = _service_client()
+    if svc is None:
+        return _redirect("/settings?error=err.backend")
+    try:
+        # Delete profile data; Supabase auth.admin.delete_user removes the auth record.
+        client.table("profiles").delete().eq("id", profile.id).execute()
+        svc.auth.admin.delete_user(profile.id)
+    except Exception as ex:
+        return _redirect(f"/settings?error=Could+not+delete+account:+{ex}")
+    response = _redirect("/login?notice=msg.account_deleted")
+    response.delete_cookie(COOKIE_NAME, path="/")
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -498,18 +646,28 @@ def groups(request: Request, error: str | None = None, notice: str | None = None
             client.table("groups")
             .select("id, name, created_at, group_members(count)")
             .eq("owner_id", profile.id)
+            .order("sort_order", desc=False, nullsfirst=True)
             .order("created_at")
             .execute()
         )
-    except Exception as ex:
-        return _render(
-            request, "groups.html", profile=profile, groups=[],
-            error=f"Could not load groups: {ex}",
-        )
+    except Exception:
+        # Fall back without sort_order if column does not exist yet.
+        try:
+            rows = (
+                client.table("groups")
+                .select("id, name, created_at, group_members(count)")
+                .eq("owner_id", profile.id)
+                .order("created_at")
+                .execute()
+            )
+        except Exception as ex:
+            return _render(
+                request, "groups.html", profile=profile, groups=[],
+                error=f"Could not load groups: {ex}",
+            )
 
     groups_data = []
     for g in rows.data or []:
-        # Supabase returns the aggregate as [{"count": N}].
         count_field = g.get("group_members") or []
         member_count = count_field[0]["count"] if count_field else 0
         groups_data.append(
@@ -520,6 +678,35 @@ def groups(request: Request, error: str | None = None, notice: str | None = None
         request, "groups.html", profile=profile, groups=groups_data,
         error=error, notice=notice,
     )
+
+
+@app.get("/groups/new", response_class=HTMLResponse)
+def new_group_form(request: Request, error: str | None = None):
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return redirect
+    return _render(request, "group_new.html", profile=profile, error=error)
+
+
+@app.post("/groups/reorder")
+async def reorder_groups(request: Request):
+    """Receives JSON {order: [id1, id2, ...]} and updates sort_order."""
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return JSONResponse({"error": "unauthorized"}, status_code=403)
+    try:
+        body = await request.json()
+        order: list[str] = body.get("order") or []
+    except Exception:
+        return JSONResponse({"error": "bad_request"}, status_code=400)
+    try:
+        for i, gid in enumerate(order):
+            client.table("groups").update({"sort_order": i}).eq(
+                "id", gid
+            ).eq("owner_id", profile.id).execute()
+    except Exception as ex:
+        return JSONResponse({"error": str(ex)}, status_code=500)
+    return JSONResponse({"ok": True})
 
 
 @app.post("/groups")
@@ -1106,7 +1293,7 @@ def tests(request: Request, error: str | None = None, notice: str | None = None)
         rows = (
             client.table("tests")
             .select("id, name, notes, pass_percent, max_attempts, question_count, "
-                    "selection_mode, time_limit_seconds, created_at, updated_at")
+                    "selection_mode, time_limit_seconds, expires_at, created_at, updated_at")
             .eq("owner_id", profile.id).order("created_at").execute()
         )
     except Exception as ex:
@@ -1142,6 +1329,7 @@ def tests(request: Request, error: str | None = None, notice: str | None = None)
             "created": _fmt_dt(r.get("created_at")),
             "updated": _fmt_dt(r.get("updated_at")),
             "time_limit_min": (secs // 60) if secs else 0,
+            "expires_at": _fmt_dt(r.get("expires_at")) if r.get("expires_at") else None,
         })
     return _render(request, "tests.html", profile=profile, tests=items,
                    error=error, notice=notice)
@@ -1172,6 +1360,16 @@ def edit_test(request: Request, test_id: str, error: str | None = None):
     t = rows[0]
 
     secs = t.get("time_limit_seconds")
+    # Format expires_at for the datetime-local input (YYYY-MM-DDTHH:MM).
+    expires_raw = t.get("expires_at") or ""
+    if expires_raw:
+        try:
+            dt = datetime.fromisoformat(str(expires_raw).replace("Z", "+00:00"))
+            expires_local = dt.strftime("%Y-%m-%dT%H:%M")
+        except (ValueError, TypeError):
+            expires_local = ""
+    else:
+        expires_local = ""
     form = {
         "test_id": t["id"], "name": t["name"], "notes": t.get("notes") or "",
         "pass_percent": str(t["pass_percent"]), "max_attempts": str(t["max_attempts"]),
@@ -1179,6 +1377,7 @@ def edit_test(request: Request, test_id: str, error: str | None = None):
         "selection_mode": t["selection_mode"], "retry_mode": t["retry_mode"],
         "draw_scope": t["draw_scope"],
         "time_limit_min": str(secs // 60) if secs else "",
+        "expires_at": expires_local,
     }
 
     quizzes_full = _trainer_quizzes_full(client, profile)
@@ -1256,6 +1455,8 @@ async def create_test(request: Request):
     draw_scope = form.get("draw_scope") or "per_trainee"
     tl_min = (form.get("time_limit_min") or "").strip()
     time_limit_seconds = int(tl_min) * 60 if tl_min.isdigit() and int(tl_min) > 0 else None
+    expires_at_raw = (form.get("expires_at") or "").strip()
+    expires_at = expires_at_raw if expires_at_raw else None
 
     selection_mode = form.get("selection_mode") or "random"
 
@@ -1300,6 +1501,7 @@ async def create_test(request: Request):
             "max_attempts": max_attempts, "selection_mode": "manual",
             "question_count": len(questions), "retry_mode": "same",
             "draw_scope": "fixed", "time_limit_seconds": time_limit_seconds,
+            "expires_at": expires_at,
         }
         try:
             tid = _save_test_row(client, profile, test_id, payload)
@@ -1363,6 +1565,7 @@ async def create_test(request: Request):
         "max_attempts": max_attempts, "selection_mode": "random",
         "question_count": question_count, "retry_mode": retry_mode,
         "draw_scope": draw_scope, "time_limit_seconds": time_limit_seconds,
+        "expires_at": expires_at,
     }
     try:
         tid = _save_test_row(client, profile, test_id, payload)
@@ -1827,6 +2030,333 @@ async def api_submit(request: Request, attempt_id: str):
     except test_take.TakeError as e:
         return JSONResponse({"error": e.key}, status_code=409)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Courses (trainer creates, both can view)
+# ---------------------------------------------------------------------------
+def _course_size_label(size: int) -> str:
+    if size < 1024:
+        return f"{size} B"
+    if size < 1024 * 1024:
+        return f"{size // 1024} KB"
+    return f"{size / (1024 * 1024):.1f} MB"
+
+
+@app.get("/courses", response_class=HTMLResponse)
+def courses(request: Request, error: str | None = None, notice: str | None = None):
+    client, profile = _current(request)
+    if profile is None:
+        return _redirect("/login")
+
+    courses_data = []
+    try:
+        if profile.is_trainer:
+            rows = (
+                client.table("courses").select("id, name, description, created_at")
+                .eq("owner_id", profile.id).order("created_at").execute()
+            )
+        else:
+            # Trainee sees courses whose groups they are a member of.
+            rows = (
+                client.table("courses").select("id, name, description, created_at")
+                .order("created_at").execute()
+            )
+        for c in rows.data or []:
+            # Group count and file count.
+            gc, fc = 0, 0
+            try:
+                gr = client.table("course_groups").select("id", count="exact").eq(
+                    "course_id", c["id"]
+                ).execute()
+                gc = gr.count or 0
+            except Exception:
+                pass
+            try:
+                fr = client.table("course_files").select("id", count="exact").eq(
+                    "course_id", c["id"]
+                ).execute()
+                fc = fr.count or 0
+            except Exception:
+                pass
+            # Group names.
+            group_names = []
+            try:
+                cgr = client.table("course_groups").select("group_id").eq(
+                    "course_id", c["id"]
+                ).execute()
+                gids = [r["group_id"] for r in (cgr.data or [])]
+                if gids:
+                    gnr = client.table("groups").select("name").in_("id", gids).execute()
+                    group_names = [g["name"] for g in (gnr.data or [])]
+            except Exception:
+                pass
+            # File list.
+            file_list = []
+            try:
+                cfr = client.table("course_files").select(
+                    "id, name, size, created_at"
+                ).eq("course_id", c["id"]).order("created_at").execute()
+                for f in cfr.data or []:
+                    file_list.append({
+                        "id": f["id"], "name": f["name"],
+                        "size_label": _course_size_label(f.get("size") or 0),
+                    })
+            except Exception:
+                pass
+            courses_data.append({
+                "id": c["id"], "name": c["name"],
+                "description": c.get("description") or "",
+                "group_count": gc, "file_count": fc,
+                "groups": group_names, "files": file_list,
+            })
+    except Exception as ex:
+        error = error or f"Could not load courses: {ex}"
+
+    return _render(
+        request, "courses.html", profile=profile, courses=courses_data,
+        error=error, notice=notice,
+    )
+
+
+@app.get("/courses/new", response_class=HTMLResponse)
+def new_course_form(request: Request, error: str | None = None):
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return redirect
+    return _render(request, "course_new.html", profile=profile, error=error)
+
+
+@app.post("/courses")
+def create_course(request: Request, name: str = Form(...),
+                  description: str = Form("")):
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return redirect
+    name = name.strip()
+    if not name:
+        return _redirect("/courses/new?error=err.course_name_required")
+    try:
+        client.table("courses").insert(
+            {"name": name, "description": description.strip() or None,
+             "owner_id": profile.id}
+        ).execute()
+    except Exception as ex:
+        return _redirect(f"/courses?error=Could+not+create+course:+{ex}")
+    return _redirect("/courses?notice=msg.course_created")
+
+
+@app.get("/courses/{course_id}", response_class=HTMLResponse)
+def course_detail(
+    request: Request, course_id: str,
+    error: str | None = None, notice: str | None = None,
+):
+    client, profile = _current(request)
+    if profile is None:
+        return _redirect("/login")
+
+    try:
+        if profile.is_trainer:
+            rows = (
+                client.table("courses").select("id, name, description")
+                .eq("id", course_id).eq("owner_id", profile.id).execute()
+            )
+        else:
+            rows = (
+                client.table("courses").select("id, name, description")
+                .eq("id", course_id).execute()
+            )
+    except Exception:
+        rows = None
+    if not rows or not rows.data:
+        return _redirect("/courses?error=err.course_not_found")
+    course = rows.data[0]
+
+    # Load files.
+    course_files = []
+    try:
+        cfr = client.table("course_files").select(
+            "id, name, size, created_at"
+        ).eq("course_id", course_id).order("created_at").execute()
+        for f in cfr.data or []:
+            course_files.append({
+                "id": f["id"], "name": f["name"],
+                "size_label": _course_size_label(f.get("size") or 0),
+            })
+    except Exception:
+        pass
+
+    if profile.is_trainer:
+        # All trainer groups + which ones are assigned.
+        all_groups = []
+        assigned_group_ids: set[str] = set()
+        try:
+            gr = client.table("groups").select("id, name, group_members(count)").eq(
+                "owner_id", profile.id
+            ).order("created_at").execute()
+            for g in gr.data or []:
+                agg = g.get("group_members") or []
+                all_groups.append({
+                    "id": g["id"], "name": g["name"],
+                    "member_count": agg[0]["count"] if agg else 0,
+                })
+            cgr = client.table("course_groups").select("group_id").eq(
+                "course_id", course_id
+            ).execute()
+            assigned_group_ids = {r["group_id"] for r in (cgr.data or [])}
+        except Exception:
+            pass
+        return _render(
+            request, "course_detail.html", profile=profile, course=course,
+            all_groups=all_groups, assigned_group_ids=assigned_group_ids,
+            course_files=course_files, error=error, notice=notice,
+        )
+    else:
+        # Trainee: group names.
+        assigned_groups = []
+        try:
+            cgr = client.table("course_groups").select("group_id").eq(
+                "course_id", course_id
+            ).execute()
+            gids = [r["group_id"] for r in (cgr.data or [])]
+            if gids:
+                gnr = client.table("groups").select("name").in_("id", gids).execute()
+                assigned_groups = [g["name"] for g in (gnr.data or [])]
+        except Exception:
+            pass
+        return _render(
+            request, "course_detail.html", profile=profile, course=course,
+            assigned_groups=assigned_groups, course_files=course_files,
+            error=error, notice=notice,
+        )
+
+
+@app.post("/courses/{course_id}/edit")
+def edit_course(request: Request, course_id: str,
+                name: str = Form(...), description: str = Form("")):
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return redirect
+    name = name.strip()
+    if not name:
+        return _redirect(f"/courses/{course_id}?error=err.course_name_required")
+    try:
+        client.table("courses").update(
+            {"name": name, "description": description.strip() or None}
+        ).eq("id", course_id).eq("owner_id", profile.id).execute()
+    except Exception as ex:
+        return _redirect(f"/courses/{course_id}?error=Could+not+save:+{ex}")
+    return _redirect(f"/courses/{course_id}?notice=msg.course_saved")
+
+
+@app.post("/courses/{course_id}/delete")
+def delete_course(request: Request, course_id: str):
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return redirect
+    try:
+        client.table("courses").delete().eq("id", course_id).eq(
+            "owner_id", profile.id
+        ).execute()
+    except Exception as ex:
+        return _redirect(f"/courses?error=Could+not+delete:+{ex}")
+    return _redirect("/courses?notice=msg.course_deleted")
+
+
+@app.post("/courses/{course_id}/groups")
+async def update_course_groups(request: Request, course_id: str):
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return redirect
+    form = await request.form()
+    group_ids = form.getlist("group_ids")
+    try:
+        # Replace all assignments.
+        client.table("course_groups").delete().eq("course_id", course_id).execute()
+        if group_ids:
+            client.table("course_groups").insert(
+                [{"course_id": course_id, "group_id": gid} for gid in group_ids]
+            ).execute()
+    except Exception as ex:
+        return _redirect(f"/courses/{course_id}?error=Could+not+save+groups:+{ex}")
+    return _redirect(f"/courses/{course_id}?notice=msg.course_groups_saved")
+
+
+@app.post("/courses/{course_id}/files")
+async def upload_course_file(
+    request: Request, course_id: str,
+    file: UploadFile = File(...),
+    label: str = Form(""),
+):
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return redirect
+
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in _ALLOWED_COURSE_EXTS:
+        return _redirect(f"/courses/{course_id}?error=err.file_type_not_allowed")
+
+    content = await file.read()
+    if len(content) > _MAX_COURSE_FILE_BYTES:
+        return _redirect(f"/courses/{course_id}?error=err.file_too_large")
+
+    display_name = label.strip() or Path(file.filename or "file").name
+
+    try:
+        client.table("course_files").insert({
+            "course_id": course_id,
+            "name": display_name,
+            "filename": file.filename,
+            "content_type": file.content_type or "application/octet-stream",
+            "size": len(content),
+            "data": content.hex(),  # store as hex; binary handling via Supabase storage is preferred
+            "owner_id": profile.id,
+        }).execute()
+    except Exception as ex:
+        return _redirect(f"/courses/{course_id}?error=Could+not+upload:+{ex}")
+    return _redirect(f"/courses/{course_id}?notice=msg.course_file_uploaded")
+
+
+@app.get("/courses/{course_id}/files/{file_id}/download")
+def download_course_file(request: Request, course_id: str, file_id: str):
+    client, profile = _current(request)
+    if profile is None:
+        return _redirect("/login")
+    try:
+        rows = (
+            client.table("course_files")
+            .select("name, filename, content_type, data")
+            .eq("id", file_id).eq("course_id", course_id).execute()
+        )
+    except Exception as ex:
+        return _redirect(f"/courses/{course_id}?error=Could+not+download:+{ex}")
+    if not rows.data:
+        return _redirect(f"/courses/{course_id}?error=err.file_not_found")
+    f = rows.data[0]
+    try:
+        content = bytes.fromhex(f["data"] or "")
+    except Exception:
+        content = b""
+    safe_name = f.get("filename") or f.get("name") or "file"
+    return Response(
+        content=content,
+        media_type=f.get("content_type") or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}"'},
+    )
+
+
+@app.post("/courses/{course_id}/files/{file_id}/delete")
+def delete_course_file(request: Request, course_id: str, file_id: str):
+    client, profile, redirect = _require_trainer(request)
+    if redirect is not None:
+        return redirect
+    try:
+        client.table("course_files").delete().eq("id", file_id).eq(
+            "course_id", course_id
+        ).execute()
+    except Exception as ex:
+        return _redirect(f"/courses/{course_id}?error=Could+not+delete+file:+{ex}")
+    return _redirect(f"/courses/{course_id}?notice=msg.course_file_deleted")
 
 
 # ---------------------------------------------------------------------------
